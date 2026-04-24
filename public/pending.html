@@ -15,33 +15,24 @@
     <p id="statusMsg" style="margin-top:15px;color:var(--primary)"></p>
   </div>
   <script src="https://telegram.org/js/telegram-web-app.js"></script>
-  <script src="https://cdn.jsdelivr.net/npm/@supabase/supabase-js@2"></script>
   <script>
     const tg = window.Telegram.WebApp;
     if (tg) { tg.expand(); tg.ready(); }
 
+    const userId = localStorage.getItem('wasalni_user_id');
+    if (!userId) {
+      window.location.href = 'login.html';
+    }
+
     let checkInterval = setInterval(checkStatus, 5000);
 
     async function checkStatus() {
-      const user = tg?.initDataUnsafe?.user;
-      if (!user) return;
+      if (!userId) return;
       try {
-        const authRes = await fetch('/api/auth', {
-          method: 'POST',
-          headers: { 'Content-Type': 'application/json' },
-          body: JSON.stringify({
-            telegram_id: user.id,
-            chat_id: user.id,
-            full_name: user.first_name + ' ' + (user.last_name || '')
-          })
-        });
-        const authData = await authRes.json();
-        if (!authData.user) return;
-
         const res = await fetch('/api/join-request?action=status', {
           method: 'POST',
           headers: { 'Content-Type': 'application/json' },
-          body: JSON.stringify({ user_id: authData.user.id })
+          body: JSON.stringify({ user_id: userId })
         });
         const result = await res.json();
         const req = result.request;
@@ -64,9 +55,7 @@
         } else {
           statusMsg.textContent = 'لم يتم العثور على طلب.';
         }
-      } catch(e) {
-        console.error(e);
-      }
+      } catch(e) {}
     }
 
     window.addEventListener('beforeunload', () => clearInterval(checkInterval));

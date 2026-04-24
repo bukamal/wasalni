@@ -23,45 +23,32 @@
       return;
     }
 
-    // تسجيل/تحديث المستخدم أولاً
+    // تسجيل الدخول أو التأكد من إنشاء المستخدم
     let currentUserId;
     try {
       const res = await fetch('/api/auth', {
-        method: 'POST',
-        headers: { 'Content-Type': 'application/json' },
+        method: 'POST', headers: { 'Content-Type': 'application/json' },
         body: JSON.stringify({
           telegram_id: user.id,
           chat_id: user.id,
           full_name: user.first_name + ' ' + (user.last_name || ''),
-          role: 'customer' // مؤقت
+          role: 'customer' // مؤقتاً
         })
       });
       const result = await res.json();
       if (result.user) currentUserId = result.user.id;
     } catch(e) {}
 
-    // إرسال الطلب
     document.getElementById('submitBtn').addEventListener('click', async () => {
       if (!currentUserId) return;
 
       const phone = role === 'customer' ? document.getElementById('phone').value : document.getElementById('phoneDriver').value;
-      const carModel = role === 'driver' ? document.getElementById('carModel').value : null;
-      const carPlate = role === 'driver' ? document.getElementById('carPlate').value : null;
+      if (!phone) { tg?.showAlert('يرجى إدخال رقم الهاتف'); return; }
 
-      if (!phone) {
-        tg?.showAlert('يرجى إدخال رقم الهاتف');
-        return;
-      }
-      if (role === 'driver' && (!carModel || !carPlate)) {
-        tg?.showAlert('يرجى إدخال بيانات السيارة');
-        return;
-      }
-
+      // تحديث رقم الهاتف في جدول users
       try {
-        // تحديث بيانات المستخدم
         await fetch('/api/auth', {
-          method: 'POST',
-          headers: { 'Content-Type': 'application/json' },
+          method: 'POST', headers: { 'Content-Type': 'application/json' },
           body: JSON.stringify({
             telegram_id: user.id,
             chat_id: user.id,
@@ -70,29 +57,31 @@
             role: 'customer'
           })
         });
+      } catch(e) {}
 
-        // إذا كان سائق، أضف بيانات السيارة
-        if (role === 'driver') {
+      // إذا كان سائق، أرسل بيانات السيارة
+      if (role === 'driver') {
+        const carModel = document.getElementById('carModel').value;
+        const carPlate = document.getElementById('carPlate').value;
+        if (!carModel || !carPlate) { tg?.showAlert('يرجى إدخال بيانات السيارة'); return; }
+        try {
           await fetch('/api/driver-register', {
-            method: 'POST',
-            headers: { 'Content-Type': 'application/json' },
-            body: JSON.stringify({
-              user_id: currentUserId,
-              car_model: carModel,
-              car_plate: carPlate
-            })
+            method: 'POST', headers: { 'Content-Type': 'application/json' },
+            body: JSON.stringify({ user_id: currentUserId, car_model: carModel, car_plate: carPlate })
           });
-        }
+        } catch(e) {}
+      }
 
-        // إنشاء طلب الانضمام
+      // إنشاء طلب الانضمام
+      try {
         const joinRes = await fetch('/api/join-request?action=create', {
-          method: 'POST',
-          headers: { 'Content-Type': 'application/json' },
+          method: 'POST', headers: { 'Content-Type': 'application/json' },
           body: JSON.stringify({ user_id: currentUserId, requested_role: role })
         });
         const joinData = await joinRes.json();
         if (joinData.request) {
           localStorage.setItem('wasalni_role', role);
+          localStorage.setItem('wasalni_user_id', currentUserId); // تخزين للاستخدام في pending
           window.location.href = 'pending.html';
         } else {
           tg?.showAlert('حدث خطأ في إرسال الطلب');

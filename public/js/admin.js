@@ -7,57 +7,65 @@
 
   let currentFilter = 'all';
 
+  // دوال مساعدة
+  function getJoinStatusText(status) {
+    const map = { 'pending': 'قيد الانتظار', 'approved': '✅ مقبول', 'rejected': '❌ مرفوض' };
+    return map[status] || status;
+  }
+
+  function getRideStatusText(status) {
+    const map = { 'pending': 'معلق', 'accepted': 'مقبول', 'picked_up': 'التقط الراكب', 'completed': 'مكتمل', 'cancelled': 'ملغي' };
+    return map[status] || status;
+  }
+
+  // الخروج والرجوع
   document.getElementById('backBtn').addEventListener('click', () => window.location.href = 'login.html');
   document.getElementById('logoutBtn').addEventListener('click', () => {
     localStorage.clear();
     window.location.href = 'login.html';
   });
 
-  // تفويض الأحداث لقسم طلبات الانضمام
-  document.getElementById('joinRequestsList').addEventListener('click', function(e) {
-    const btn = e.target.closest('button');
-    if (!btn) return;
-    const id = btn.dataset.id;
-    if (btn.classList.contains('approve-btn')) {
-      handleJoinRequest(id, 'approved');
-    } else if (btn.classList.contains('reject-btn')) {
-      handleJoinRequest(id, 'rejected');
-    }
-  });
-
+  // ----- تحميل أولي -----
   document.addEventListener('DOMContentLoaded', async () => {
     const user = tg?.initDataUnsafe?.user;
     if (!user) return;
 
+    // تحقق من الصلاحية
     try {
       const res = await fetch('/api/admin-check', {
-        method: 'POST',
-        headers: { 'Content-Type': 'application/json' },
+        method: 'POST', headers: { 'Content-Type': 'application/json' },
         body: JSON.stringify({ chat_id: user.id })
       });
       const result = await res.json();
       if (!result.isAdmin) {
-        document.body.innerHTML = '<div class="container" style="text-align:center;padding-top:40vh"><h2>⛔ غير مصرح</h2><p>ليس لديك صلاحية الوصول</p></div>';
+        document.body.innerHTML = '<div class="container" style="text-align:center;padding-top:40vh"><h2>⛔ غير مصرح</h2></div>';
         return;
       }
     } catch (e) { return; }
 
+    // تبويبات المشاوير
     document.getElementById('tabAll').addEventListener('click', (e) => filterRides('all', e.target));
     document.getElementById('tabPending').addEventListener('click', (e) => filterRides('pending', e.target));
     document.getElementById('tabAccepted').addEventListener('click', (e) => filterRides('accepted', e.target));
     document.getElementById('tabCompleted').addEventListener('click', (e) => filterRides('completed', e.target));
 
-    loadStats();
-    loadRides();
-    loadJoinRequests();
-    setInterval(() => { loadStats(); loadRides(); loadJoinRequests(); }, 10000);
+    // تحميل البيانات
+    await loadStats();
+    await loadJoinRequests();
+    await loadRides();
+
+    setInterval(() => {
+      loadStats();
+      loadJoinRequests();
+      loadRides();
+    }, 10000);
   });
 
+  // ========== إحصائيات ==========
   async function loadStats() {
     try {
       const res = await fetch('/api/admin?action=stats', {
-        method: 'POST',
-        headers: { 'Content-Type': 'application/json' },
+        method: 'POST', headers: { 'Content-Type': 'application/json' },
         body: JSON.stringify({ chat_id: tg.initDataUnsafe.user.id })
       });
       const { rides, users } = await res.json();
@@ -67,17 +75,18 @@
     } catch (e) {}
   }
 
+  // ========== طلبات الانضمام ==========
   async function loadJoinRequests() {
     try {
       const res = await fetch('/api/admin?action=list_join_requests', {
-        method: 'POST',
-        headers: { 'Content-Type': 'application/json' },
+        method: 'POST', headers: { 'Content-Type': 'application/json' },
         body: JSON.stringify({ chat_id: tg.initDataUnsafe.user.id })
       });
       const { data } = await res.json();
       const list = document.getElementById('joinRequestsList');
       list.innerHTML = '';
       document.getElementById('joinRequestsCount').textContent = data?.length || 0;
+
       if (!data || data.length === 0) {
         list.innerHTML = '<div class="list-item" style="justify-content:center;color:var(--text-light)">لا توجد طلبات انضمام</div>';
         return;
@@ -85,8 +94,8 @@
 
       data.forEach(req => {
         const user = req.users;
-        const driver = req.driver_details;
         const isDriver = req.requested_role === 'driver';
+        const driver = req.driver_details;
 
         const div = document.createElement('div');
         div.className = 'list-item';
@@ -97,12 +106,7 @@
               <span class="badge badge-${req.status}">${getJoinStatusText(req.status)}</span>
             </div>
             <small>📞 ${user?.phone || 'لا يوجد'}</small>
-            ${isDriver && driver ? `
-              <div style="margin-top:6px">
-                <small>🚘 ${driver.car_model || 'غير محدد'}</small><br>
-                <small>🔢 ${driver.car_plate || 'غير محدد'}</small>
-              </div>` : ''}
-            ${!isDriver ? `<small>الدور: زبون</small>` : ''}
+            ${isDriver && driver ? `<div style="margin-top:6px"><small>🚘 ${driver.car_model || 'غير محدد'}</small><br><small>🔢 ${driver.car_plate || 'غير محدد'}</small></div>` : ''}
           </div>
           ${req.status === 'pending' ? `
           <div class="actions">
@@ -112,40 +116,42 @@
         `;
         list.appendChild(div);
       });
-      // لا حاجة لربط الأزرار هنا لأن التفويض موجود مسبقاً
+
+      // ربط الأزرار مباشرة بعد الإدراج (طريقة آمنة)
+      list.querySelectorAll('.approve-btn').forEach(btn => {
+        btn.onclick = () => handleJoinRequest(btn.dataset.id, 'approved');
+      });
+      list.querySelectorAll('.reject-btn').forEach(btn => {
+        btn.onclick = () => handleJoinRequest(btn.dataset.id, 'rejected');
+      });
+
     } catch (e) {}
   }
 
   async function handleJoinRequest(requestId, status) {
     try {
-      await fetch('/api/admin?action=handle_join_request', {
-        method: 'POST',
-        headers: { 'Content-Type': 'application/json' },
+      const res = await fetch('/api/admin?action=handle_join_request', {
+        method: 'POST', headers: { 'Content-Type': 'application/json' },
         body: JSON.stringify({ chat_id: tg.initDataUnsafe.user.id, request_id: requestId, status })
       });
-      loadJoinRequests();
-      loadStats();
-      tg?.showAlert(status === 'approved' ? '✅ تم قبول الطلب' : '❌ تم رفض الطلب');
+      if (res.ok) {
+        tg?.showAlert(status === 'approved' ? '✅ تم قبول الطلب' : '❌ تم رفض الطلب');
+        loadJoinRequests();
+        loadStats();
+      } else {
+        const err = await res.json();
+        tg?.showAlert('خطأ: ' + (err.error || 'فشل'));
+      }
     } catch (e) {
-      tg?.showAlert('حدث خطأ');
+      tg?.showAlert('حدث خطأ في الاتصال');
     }
   }
 
-  function getJoinStatusText(status) {
-    const map = {
-      'pending': 'قيد الانتظار',
-      'approved': '✅ مقبول',
-      'rejected': '❌ مرفوض'
-    };
-    return map[status] || status;
-  }
-
-  // ----- إدارة المشاوير (بدون تغيير) -----
+  // ========== المشاوير ==========
   async function loadRides() {
     try {
       const res = await fetch('/api/admin?action=all_rides', {
-        method: 'POST',
-        headers: { 'Content-Type': 'application/json' },
+        method: 'POST', headers: { 'Content-Type': 'application/json' },
         body: JSON.stringify({ chat_id: tg.initDataUnsafe.user.id })
       });
       const { data } = await res.json();
@@ -185,28 +191,11 @@
         list.appendChild(div);
       });
 
-      // تفويض أزرار المشاوير
-      document.getElementById('adminRidesList').onclick = function(e) {
-        const btn = e.target.closest('button');
-        if (!btn) return;
-        const id = btn.dataset.id;
-        const status = btn.dataset.status;
-        if (btn.classList.contains('manage-btn')) {
-          manageRide(id, status);
-        }
-      };
-    } catch (e) {}
-  }
+      list.querySelectorAll('.manage-btn').forEach(btn => {
+        btn.onclick = () => manageRide(btn.dataset.id, btn.dataset.status);
+      });
 
-  function getRideStatusText(status) {
-    const map = {
-      'pending': 'معلق',
-      'accepted': 'مقبول',
-      'picked_up': 'التقط الراكب',
-      'completed': 'مكتمل',
-      'cancelled': 'ملغي'
-    };
-    return map[status] || status;
+    } catch (e) {}
   }
 
   function filterRides(filter, targetEl) {
@@ -219,16 +208,15 @@
   async function manageRide(id, status) {
     try {
       const res = await fetch('/api/admin?action=manage_ride', {
-        method: 'POST',
-        headers: { 'Content-Type': 'application/json' },
+        method: 'POST', headers: { 'Content-Type': 'application/json' },
         body: JSON.stringify({ chat_id: tg.initDataUnsafe.user.id, id, status })
       });
-      const result = await res.json();
-      if (result.data) {
+      if (res.ok) {
         tg?.showAlert('✅ تم تحديث الحالة');
         loadStats();
         loadRides();
       }
     } catch (e) {}
   }
+
 })();

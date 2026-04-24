@@ -44,9 +44,9 @@ export default async function handler(req, res) {
       return res.status(error ? 400 : 200).json({ data, error: error?.message });
     }
 
-    // ---- طلبات الانضمام (محسّن) ----
+    // ---- طلبات الانضمام ----
     if (action === 'list_join_requests') {
-      // 1. جلب طلبات الانضمام مع بيانات المستخدم
+      // جلب الطلبات مع المستخدمين
       const { data: requests, error: reqError } = await supabase
         .from('join_requests')
         .select('*, users!join_requests_user_id_fkey(*)')
@@ -54,11 +54,8 @@ export default async function handler(req, res) {
 
       if (reqError) return res.status(400).json({ error: reqError.message });
 
-      // 2. جلب بيانات السائقين للمستخدمين الذين يطلبون دور سائق
-      const driverUserIds = requests
-        .filter(r => r.requested_role === 'driver')
-        .map(r => r.user_id);
-
+      // جلب بيانات السائقين
+      const driverUserIds = requests.filter(r => r.requested_role === 'driver').map(r => r.user_id);
       let driversData = [];
       if (driverUserIds.length > 0) {
         const { data: drivers } = await supabase
@@ -68,14 +65,10 @@ export default async function handler(req, res) {
         driversData = drivers || [];
       }
 
-      // 3. دمج بيانات السائق لكل طلب
-      const enriched = requests.map(req => {
-        const driver = driversData.find(d => d.user_id === req.user_id) || null;
-        return {
-          ...req,
-          driver_details: driver
-        };
-      });
+      const enriched = requests.map(req => ({
+        ...req,
+        driver_details: driversData.find(d => d.user_id === req.user_id) || null
+      }));
 
       return res.status(200).json({ data: enriched });
     }
@@ -93,17 +86,28 @@ export default async function handler(req, res) {
       if (fetchError || !joinReq) return res.status(404).json({ error: 'Request not found' });
 
       if (status === 'approved') {
+        // تحديث دور المستخدم
         const { error: updateUserError } = await supabase
           .from('users')
           .update({ role: joinReq.requested_role })
           .eq('id', joinReq.user_id);
         if (updateUserError) return res.status(400).json({ error: updateUserError.message });
 
+        // التأكد من وجود سجل driver دون مسح بياناته
         if (joinReq.requested_role === 'driver') {
-          await supabase.from('drivers').upsert({ user_id: joinReq.user_id }, { onConflict: 'user_id' });
+          // فقط إنشاء إذا لم يكن موجوداً، دون تغيير البيانات
+          const { data: existingDriver } = await supabase
+            .from('drivers')
+            .select('id')
+            .eq('user_id', joinReq.user_id)
+            .maybeSingle();
+          if (!existingDriver) {
+            await supabase.from('drivers').insert({ user_id: joinReq.user_id });
+          }
         }
       }
 
+      // تحديث حالة الطلب
       const { data, error } = await supabase
         .from('join_requests')
         .update({ status, updated_at: new Date().toISOString(), admin_id: chat_id })
