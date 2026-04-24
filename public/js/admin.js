@@ -13,6 +13,18 @@
     window.location.href = 'login.html';
   });
 
+  // تفويض الأحداث لقسم طلبات الانضمام
+  document.getElementById('joinRequestsList').addEventListener('click', function(e) {
+    const btn = e.target.closest('button');
+    if (!btn) return;
+    const id = btn.dataset.id;
+    if (btn.classList.contains('approve-btn')) {
+      handleJoinRequest(id, 'approved');
+    } else if (btn.classList.contains('reject-btn')) {
+      handleJoinRequest(id, 'rejected');
+    }
+  });
+
   document.addEventListener('DOMContentLoaded', async () => {
     const user = tg?.initDataUnsafe?.user;
     if (!user) return;
@@ -100,9 +112,7 @@
         `;
         list.appendChild(div);
       });
-
-      document.querySelectorAll('.approve-btn').forEach(btn => btn.addEventListener('click', (e) => handleJoinRequest(e.target.dataset.id, 'approved')));
-      document.querySelectorAll('.reject-btn').forEach(btn => btn.addEventListener('click', (e) => handleJoinRequest(e.target.dataset.id, 'rejected')));
+      // لا حاجة لربط الأزرار هنا لأن التفويض موجود مسبقاً
     } catch (e) {}
   }
 
@@ -115,7 +125,10 @@
       });
       loadJoinRequests();
       loadStats();
-    } catch (e) {}
+      tg?.showAlert(status === 'approved' ? '✅ تم قبول الطلب' : '❌ تم رفض الطلب');
+    } catch (e) {
+      tg?.showAlert('حدث خطأ');
+    }
   }
 
   function getJoinStatusText(status) {
@@ -127,7 +140,7 @@
     return map[status] || status;
   }
 
-  // ----- إدارة المشاوير (كما كانت) -----
+  // ----- إدارة المشاوير (بدون تغيير) -----
   async function loadRides() {
     try {
       const res = await fetch('/api/admin?action=all_rides', {
@@ -172,13 +185,16 @@
         list.appendChild(div);
       });
 
-      document.querySelectorAll('.manage-btn').forEach(btn => {
-        btn.addEventListener('click', (e) => {
-          const id = e.target.dataset.id;
-          const status = e.target.dataset.status;
+      // تفويض أزرار المشاوير
+      document.getElementById('adminRidesList').onclick = function(e) {
+        const btn = e.target.closest('button');
+        if (!btn) return;
+        const id = btn.dataset.id;
+        const status = btn.dataset.status;
+        if (btn.classList.contains('manage-btn')) {
           manageRide(id, status);
-        });
-      });
+        }
+      };
     } catch (e) {}
   }
 
@@ -209,6 +225,7 @@
       });
       const result = await res.json();
       if (result.data) {
+        tg?.showAlert('✅ تم تحديث الحالة');
         loadStats();
         loadRides();
       }
