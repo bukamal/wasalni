@@ -1,0 +1,40 @@
+<!DOCTYPE html>
+<html lang="ar" dir="rtl">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <title>الزبون - وصلني</title>
+  <script src="https://telegram.org/js/telegram-web-app.js"></script>
+  <link rel="stylesheet" href="css/style/style.css">
+</head>
+<body>
+  <div class="container">
+    <header>
+      <h2>👤 وصلني</h2>
+      <span id="userName"></span>
+    </header>
+
+    <div class="card" id="requestForm">
+      <h3>📝 طلب مشوار جديد</h3>
+      <input type="text" id="pickup" placeholder="موقع الالتقاط">
+      <input type="text" id="dropoff" placeholder="الوجهة">
+      <input type="number" id="price" placeholder="السعر المقترح">
+      <button class="btn-primary" onclick="requestRide()">🚕 طلب مشوار</button>
+    </div>
+
+    <div class="card hidden" id="rideStatus">
+      <h3>حالة المشوار</h3>
+      <div id="statusText">جاري البحث عن سائق...</div>
+      <div class="progress-bar"><div class="progress"></div></div>
+    </div>
+
+    <div class="card">
+      <h3>📋 سجل مشاويري</h3>
+      <div id="ridesList" class="list"></div>
+    </div>
+  </div>
+
+  <script src="https://cdn.jsdelivr.net/npm/@supabase/supabase-js@2"></2</script>
+  <script src="js/customer.js"></script>
+</body>
+</html>

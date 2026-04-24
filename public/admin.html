@@ -1,0 +1,61 @@
+<!DOCTYPE html>
+<html lang="ar" dir="rtl">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0, user-scalable=no">
+  <title>الإدارة - وصلني</title>
+  <script src="https://telegram.org/js/telegram-web-app.js"></script>
+  <link rel="stylesheet" href="css/style.css">
+</head>
+<body>
+  <div class="container">
+    <header class="page-header admin">
+      <div>
+        <h2>🛡️ لوحة الإدارة</h2>
+        <span class="admin-badge">مدير النظام</span>
+      </div>
+      <button class="icon-btn" onclick="logout()">🚪</button>
+    </header>
+
+    <div class="stats-grid">
+      <div class="stat-card stat-orange">
+        <div class="stat-icon">🚕</div>
+        <div class="stat-data">
+          <span id="totalRides">0</span>
+          <small>الطلبات</small>
+        </div>
+      </div>
+      <div class="stat-card stat-blue">
+        <div class="stat-icon">🚗</div>
+        <div class="stat-data">
+          <span id="totalDrivers">0</span>
+          <small>السائقون</small>
+        </div>
+      </div>
+      <div class="stat-card stat-green">
+        <div class="stat-icon">👤</div>
+        <div class="stat-data">
+          <span id="totalCustomers">0</span>
+          <small>الزبائن</small>
+        </div>
+      </div>
+    </div>
+
+    <div class="card">
+      <div class="card-header">
+        <h3>📋 إدارة الطلبات</h3>
+        <div class="tabs">
+          <button class="tab active" onclick="filterRides('all', event)">الكل</button>
+          <button class="tab" onclick="filterRides('pending', event)">معلق</button>
+          <button class="tab" onclick="filterRides('accepted', event)">نشط</button>
+          <button class="tab" onclick="filterRides('completed', event)">مكتمل</button>
+        </div>
+      </div>
+      <div id="adminRidesList" class="list admin-list"></div>
+    </div>
+  </div>
+
+  <script src="https://cdn.jsdelivr.net/npm/@supabase/supabase-js@2"></script>
+  <script src="js/admin.js"></script>
+</body>
+</html>

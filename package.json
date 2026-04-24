@@ -1,0 +1,14 @@
+{
+  "name": "wasalni",
+  "version": "1.0.0",
+  "private": true,
+  "scripts": {
+    "dev": "vercel dev",
+    "deploy": "vercel --prod"
+  },
+  "dependencies": {
+    "@supabase/supabase-js": "^2.39.0",
+    "@vercel/node": "^3.0.0",
+    "node-telegram-bot-api": "^0.64.0"
+  }
+}

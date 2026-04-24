@@ -1,0 +1,55 @@
+<!DOCTYPE html>
+<html lang="ar" dir="rtl">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0, user-scalable=no">
+  <title>السائق - وصلني</title>
+  <script src="https://telegram.org/js/telegram-web-app.js"></script>
+  <link rel="stylesheet" href="css/style.css">
+</head>
+<body>
+  <div class="container">
+    <header class="driver-header">
+      <div class="driver-info">
+        <h2>🚗 لوحة السائق</h2>
+        <span id="driverName"></span>
+      </div>
+      <label class="switch">
+        <input type="checkbox" id="onlineToggle" onchange="toggleStatus()">
+        <span class="slider"></span>
+        <span id="statusLabel" class="status-badge offline">غير متاح</span>
+      </label>
+    </header>
+
+    <div class="card" id="requestsCard">
+      <div class="card-header">
+        <h3>🔔 طلبات جديدة</h3>
+        <span class="badge-count" id="requestsCount">0</span>
+      </div>
+      <div id="requestsList" class="list"></div>
+    </div>
+
+    <div class="card hidden" id="currentRide">
+      <div class="card-header">
+        <h3>📍 المشوار الحالي</h3>
+        <span class="badge badge-accepted">قيد التنفيذ</span>
+      </div>
+      <div id="rideDetails" class="ride-details"></div>
+      <div class="ride-actions">
+        <button class="btn-success" onclick="updateRide('picked_up')">
+          <span>✅</span> التقطت الراكب
+        </button>
+        <button class="btn-primary" onclick="updateRide('completed')">
+          <span>🏁</span> وصلت
+        </button>
+        <button class="btn-danger" onclick="updateRide('cancelled')">
+          <span>❌</span> إلغاء
+        </button>
+      </div>
+    </div>
+  </div>
+
+  <script src="https://cdn.jsdelivr.net/npm/@supabase/supabase-js@2"></script>
+  <script src="js/driver.js"></script>
+</body>
+</html>
