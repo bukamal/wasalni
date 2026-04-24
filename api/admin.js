@@ -26,12 +26,14 @@ export default async function handler(req, res) {
       const { data: users } = await supabase.from('users').select('role');
       return res.status(200).json({ rides, users });
     }
+
     if (action === 'all_rides') {
       const { data } = await supabase.from('rides')
         .select('*, users!rides_customer_id_fkey(full_name, phone), drivers!rides_driver_id_fkey(user_id, car_plate)')
         .order('created_at', { ascending: false });
       return res.status(200).json({ data });
     }
+
     if (action === 'manage_ride') {
       const { id, status } = req.body;
       const { data, error } = await supabase.from('rides')
@@ -42,13 +44,40 @@ export default async function handler(req, res) {
       return res.status(error ? 400 : 200).json({ data, error: error?.message });
     }
 
-    // ---- طلبات الانضمام ----
+    // ---- طلبات الانضمام (محسّن) ----
     if (action === 'list_join_requests') {
-      const { data } = await supabase
+      // 1. جلب طلبات الانضمام مع بيانات المستخدم
+      const { data: requests, error: reqError } = await supabase
         .from('join_requests')
-        .select('*, users!join_requests_user_id_fkey(telegram_id, full_name, chat_id, phone)')
+        .select('*, users!join_requests_user_id_fkey(*)')
         .order('created_at', { ascending: false });
-      return res.status(200).json({ data });
+
+      if (reqError) return res.status(400).json({ error: reqError.message });
+
+      // 2. جلب بيانات السائقين للمستخدمين الذين يطلبون دور سائق
+      const driverUserIds = requests
+        .filter(r => r.requested_role === 'driver')
+        .map(r => r.user_id);
+
+      let driversData = [];
+      if (driverUserIds.length > 0) {
+        const { data: drivers } = await supabase
+          .from('drivers')
+          .select('*')
+          .in('user_id', driverUserIds);
+        driversData = drivers || [];
+      }
+
+      // 3. دمج بيانات السائق لكل طلب
+      const enriched = requests.map(req => {
+        const driver = driversData.find(d => d.user_id === req.user_id) || null;
+        return {
+          ...req,
+          driver_details: driver
+        };
+      });
+
+      return res.status(200).json({ data: enriched });
     }
 
     if (action === 'handle_join_request') {

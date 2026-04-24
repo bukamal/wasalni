@@ -70,14 +70,27 @@
         list.innerHTML = '<div class="list-item" style="justify-content:center;color:var(--text-light)">لا توجد طلبات انضمام</div>';
         return;
       }
+
       data.forEach(req => {
+        const user = req.users;
+        const driver = req.driver_details;
+        const isDriver = req.requested_role === 'driver';
+
         const div = document.createElement('div');
         div.className = 'list-item';
         div.innerHTML = `
           <div class="info" style="width:100%">
-            <strong>${req.users?.full_name || 'مجهول'}</strong>
-            <small>${req.requested_role === 'driver' ? '🚗 سائق' : '👤 زبون'}</small>
-            <small>الحالة: ${req.status === 'pending' ? 'قيد الانتظار' : req.status === 'approved' ? '✅ مقبول' : '❌ مرفوض'}</small>
+            <div style="display:flex;justify-content:space-between;align-items:center;margin-bottom:6px">
+              <strong>${user?.full_name || 'مجهول'} (${isDriver ? '🚗 سائق' : '👤 زبون'})</strong>
+              <span class="badge badge-${req.status}">${getJoinStatusText(req.status)}</span>
+            </div>
+            <small>📞 ${user?.phone || 'لا يوجد'}</small>
+            ${isDriver && driver ? `
+              <div style="margin-top:6px">
+                <small>🚘 ${driver.car_model || 'غير محدد'}</small><br>
+                <small>🔢 ${driver.car_plate || 'غير محدد'}</small>
+              </div>` : ''}
+            ${!isDriver ? `<small>الدور: زبون</small>` : ''}
           </div>
           ${req.status === 'pending' ? `
           <div class="actions">
@@ -87,6 +100,7 @@
         `;
         list.appendChild(div);
       });
+
       document.querySelectorAll('.approve-btn').forEach(btn => btn.addEventListener('click', (e) => handleJoinRequest(e.target.dataset.id, 'approved')));
       document.querySelectorAll('.reject-btn').forEach(btn => btn.addEventListener('click', (e) => handleJoinRequest(e.target.dataset.id, 'rejected')));
     } catch (e) {}
@@ -104,6 +118,16 @@
     } catch (e) {}
   }
 
+  function getJoinStatusText(status) {
+    const map = {
+      'pending': 'قيد الانتظار',
+      'approved': '✅ مقبول',
+      'rejected': '❌ مرفوض'
+    };
+    return map[status] || status;
+  }
+
+  // ----- إدارة المشاوير (كما كانت) -----
   async function loadRides() {
     try {
       const res = await fetch('/api/admin?action=all_rides', {
@@ -132,7 +156,7 @@
           <div class="info" style="width:100%">
             <div style="display:flex;justify-content:space-between;align-items:center;margin-bottom:8px">
               <strong>${ride.pickup_address} → ${ride.dropoff_address}</strong>
-              <span class="badge badge-${ride.status}">${getStatusText(ride.status)}</span>
+              <span class="badge badge-${ride.status}">${getRideStatusText(ride.status)}</span>
             </div>
             <div style="display:flex;justify-content:space-between;align-items:center">
               <small>${ride.users?.full_name || 'Unknown'} · ${ride.price || 0} ر.س</small>
@@ -158,7 +182,7 @@
     } catch (e) {}
   }
 
-  function getStatusText(status) {
+  function getRideStatusText(status) {
     const map = {
       'pending': 'معلق',
       'accepted': 'مقبول',
