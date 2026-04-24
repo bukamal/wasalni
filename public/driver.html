@@ -7,17 +7,20 @@
   <script src="https://telegram.org/js/telegram-web-app.js"></script>
   <link rel="stylesheet" href="css/style.css">
 </head>
-<body>
+<body class="app-body">
   <div class="container">
-    <header class="driver-header">
-      <div class="driver-info">
+    <header class="page-header">
+      <button class="back-btn" id="backBtn">← رجوع</button>
+      <div>
         <h2>🚗 لوحة السائق</h2>
-        <span id="driverName"></span>
+        <span id="driverName" class="user-name">سائق</span>
       </div>
-      <label class="switch">
-        <input type="checkbox" id="onlineToggle" onchange="toggleStatus()">
-        <span class="slider"></span>
-        <span id="statusLabel" class="status-badge offline">غير متاح</span>
+      <label class="status-switch">
+        <input type="checkbox" id="onlineToggle">
+        <span class="switch-track">
+          <span class="switch-thumb"></span>
+        </span>
+        <span id="statusLabel" class="status-text">غير متاح</span>
       </label>
     </header>
 
@@ -34,16 +37,16 @@
         <h3>📍 المشوار الحالي</h3>
         <span class="badge badge-accepted">قيد التنفيذ</span>
       </div>
-      <div id="rideDetails" class="ride-details"></div>
-      <div class="ride-actions">
-        <button class="btn-success" onclick="updateRide('picked_up')">
+      <div id="rideDetails" class="ride-info"></div>
+      <div class="ride-actions-grid">
+        <button class="btn-success" id="btnPickedUp">
           <span>✅</span> التقطت الراكب
         </button>
-        <button class="btn-primary" onclick="updateRide('completed')">
+        <button class="btn-primary" id="btnCompleted">
           <span>🏁</span> وصلت
         </button>
-        <button class="btn-danger" onclick="updateRide('cancelled')">
-          <span>❌</span> إلغاء
+        <button class="btn-danger" id="btnCancelled">
+          <span>❌</span> إلغاء المشوار
         </button>
       </div>
     </div>

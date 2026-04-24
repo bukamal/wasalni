@@ -7,14 +7,15 @@
   <script src="https://telegram.org/js/telegram-web-app.js"></script>
   <link rel="stylesheet" href="css/style.css">
 </head>
-<body>
+<body class="app-body">
   <div class="container">
     <header class="page-header admin">
+      <button class="back-btn" id="backBtn">← رجوع</button>
       <div>
         <h2>🛡️ لوحة الإدارة</h2>
         <span class="admin-badge">مدير النظام</span>
       </div>
-      <button class="icon-btn" onclick="logout()">🚪</button>
+      <button class="icon-btn" id="logoutBtn">🚪</button>
     </header>
 
     <div class="stats-grid">
@@ -45,10 +46,10 @@
       <div class="card-header">
         <h3>📋 إدارة الطلبات</h3>
         <div class="tabs">
-          <button class="tab active" onclick="filterRides('all', event)">الكل</button>
-          <button class="tab" onclick="filterRides('pending', event)">معلق</button>
-          <button class="tab" onclick="filterRides('accepted', event)">نشط</button>
-          <button class="tab" onclick="filterRides('completed', event)">مكتمل</button>
+          <button class="tab active" id="tabAll">الكل</button>
+          <button class="tab" id="tabPending">معلق</button>
+          <button class="tab" id="tabAccepted">نشط</button>
+          <button class="tab" id="tabCompleted">مكتمل</button>
         </div>
       </div>
       <div id="adminRidesList" class="list admin-list"></div>
