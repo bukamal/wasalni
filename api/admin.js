@@ -10,13 +10,8 @@ export default async function handler(req, res) {
   res.setHeader('Access-Control-Allow-Headers', 'Content-Type');
   res.setHeader('Access-Control-Allow-Methods', 'POST, OPTIONS');
 
-  if (req.method === 'OPTIONS') {
-    return res.status(200).end();
-  }
-
-  if (req.method !== 'POST') {
-    return res.status(405).json({ error: 'Method not allowed' });
-  }
+  if (req.method === 'OPTIONS') return res.status(200).end();
+  if (req.method !== 'POST') return res.status(405).json({ error: 'Method not allowed' });
 
   const { chat_id } = req.body;
 
@@ -25,7 +20,6 @@ export default async function handler(req, res) {
     if (!isAdmin) return res.status(403).json({ error: 'Unauthorized' });
 
     const { action } = req.query;
-
     if (action === 'stats') {
       const { data: rides } = await supabase.from('rides').select('status');
       const { data: users } = await supabase.from('users').select('role');
