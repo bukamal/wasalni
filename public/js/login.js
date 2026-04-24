@@ -13,8 +13,6 @@
       if (statusEl) {
         statusEl.textContent = msg;
         statusEl.className = 'login-status' + (isError ? ' error' : '');
-        if (isError) console.error('[وصلني] ' + msg);
-        else console.log('[وصلني] ' + msg);
       }
     }
 
@@ -24,7 +22,6 @@
       return;
     }
 
-    // تسجيل المستخدم تلقائياً
     try {
       const res = await fetch('/api/auth', {
         method: 'POST',
@@ -36,22 +33,9 @@
           role: 'customer'
         })
       });
-
-      // قراءة الاستجابة كنص أولاً لتجنب خطأ JSON.parse
-      const text = await res.text();
-      console.log('[وصلني] استجابة /api/auth:', text);
-
-      let result;
-      try {
-        result = JSON.parse(text);
-      } catch (jsonError) {
-        // الاستجابة ليست JSON (غالباً HTML)
-        showStatus('استجابة غير صحيحة من الخادم: ' + text.substring(0, 150), true);
-        return;
-      }
-
+      const result = await res.json();
       if (result.user) {
-        // التحقق من صلاحية الأدمن
+        // التحقق من الأدمن
         try {
           const adminRes = await fetch('/api/admin-check', {
             method: 'POST',
@@ -59,25 +43,18 @@
             body: JSON.stringify({ chat_id: user.id })
           });
           const adminResult = await adminRes.json();
-          if (adminResult.error) {
-            showStatus('فشل في التحقق من صلاحية الأدمن: ' + adminResult.error, true);
-          } else if (adminResult.isAdmin) {
+          if (adminResult.isAdmin) {
             adminCard.classList.remove('hidden');
             adminCard.style.opacity = '0';
             adminCard.style.transition = 'opacity 0.5s ease';
             setTimeout(() => { adminCard.style.opacity = '1'; }, 10);
-            showStatus('', false);
-          } else {
-            showStatus('', false);
           }
-        } catch (e) {
-          showStatus('خطأ في الاتصال بخادم التحقق من الأدمن: ' + e.message, true);
-        }
+        } catch(e) {}
       } else {
         showStatus('فشل تسجيل الدخول: ' + (result.error || 'خطأ غير معروف'), true);
       }
     } catch (e) {
-      showStatus('خطأ في الاتصال بخادم تسجيل الدخول: ' + e.message, true);
+      showStatus('خطأ في الاتصال', true);
     }
 
     // ربط الأزرار
