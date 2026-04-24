@@ -5,28 +5,22 @@ const supabase = createClient(
   process.env.SUPABASE_SERVICE_ROLE_KEY
 );
 
-// إعداد رؤوس CORS
-const corsHeaders = {
-  'Access-Control-Allow-Origin': '*',
-  'Access-Control-Allow-Headers': 'authorization, x-client-info, apikey, content-type',
-  'Access-Control-Allow-Methods': 'POST, OPTIONS',
-};
-
 export default async function handler(req, res) {
-  // التعامل مع طلب OPTIONS المسبق
+  // CORS headers
+  res.setHeader('Access-Control-Allow-Origin', '*');
+  res.setHeader('Access-Control-Allow-Headers', 'Content-Type');
+  res.setHeader('Access-Control-Allow-Methods', 'POST, OPTIONS');
+
   if (req.method === 'OPTIONS') {
-    res.writeHead(200, corsHeaders);
-    return res.end();
+    return res.status(200).end();
   }
 
   if (req.method !== 'POST') {
-    res.writeHead(405, corsHeaders);
-    return res.end(JSON.stringify({ error: 'Method not allowed' }));
+    return res.status(405).json({ error: 'Method not allowed' });
   }
 
   const { telegram_id, chat_id, full_name, phone, role } = req.body;
 
-  // Check admin
   let finalRole = role || 'customer';
   if (role === 'admin') {
     const { data: isAdmin } = await supabase.rpc('is_admin', { p_chat_id: chat_id });
@@ -40,19 +34,14 @@ export default async function handler(req, res) {
       .select()
       .single();
 
-    if (error) {
-      res.writeHead(400, corsHeaders);
-      return res.end(JSON.stringify({ error: error.message }));
-    }
+    if (error) return res.status(400).json({ error: error.message });
 
     if (finalRole === 'driver') {
       await supabase.from('drivers').upsert({ user_id: user.id }, { onConflict: 'user_id' });
     }
 
-    res.writeHead(200, corsHeaders);
-    return res.end(JSON.stringify({ user }));
+    return res.status(200).json({ user });
   } catch (error) {
-    res.writeHead(500, corsHeaders);
-    return res.end(JSON.stringify({ error: error.message }));
+    return res.status(500).json({ error: error.message });
   }
 }

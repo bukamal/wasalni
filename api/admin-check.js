@@ -5,41 +5,27 @@ const supabase = createClient(
   process.env.SUPABASE_SERVICE_ROLE_KEY
 );
 
-const corsHeaders = {
-  'Access-Control-Allow-Origin': '*',
-  'Access-Control-Allow-Headers': 'authorization, x-client-info, apikey, content-type',
-  'Access-Control-Allow-Methods': 'POST, OPTIONS',
-};
-
 export default async function handler(req, res) {
+  res.setHeader('Access-Control-Allow-Origin', '*');
+  res.setHeader('Access-Control-Allow-Headers', 'Content-Type');
+  res.setHeader('Access-Control-Allow-Methods', 'POST, OPTIONS');
+
   if (req.method === 'OPTIONS') {
-    res.writeHead(200, corsHeaders);
-    return res.end();
+    return res.status(200).end();
   }
 
   if (req.method !== 'POST') {
-    res.writeHead(405, corsHeaders);
-    return res.end(JSON.stringify({ error: 'Method not allowed' }));
+    return res.status(405).json({ error: 'Method not allowed' });
   }
 
   const { chat_id } = req.body;
-  if (!chat_id) {
-    res.writeHead(400, corsHeaders);
-    return res.end(JSON.stringify({ error: 'chat_id مطلوب' }));
-  }
+  if (!chat_id) return res.status(400).json({ error: 'chat_id مطلوب' });
 
   try {
     const { data, error } = await supabase.rpc('is_admin', { p_chat_id: chat_id });
-    if (error) {
-      console.error('خطأ في استدعاء is_admin:', error);
-      res.writeHead(500, corsHeaders);
-      return res.end(JSON.stringify({ error: error.message }));
-    }
-    res.writeHead(200, corsHeaders);
-    return res.end(JSON.stringify({ isAdmin: !!data }));
+    if (error) return res.status(500).json({ error: error.message });
+    return res.status(200).json({ isAdmin: !!data });
   } catch (error) {
-    console.error('خطأ في الخادم:', error);
-    res.writeHead(500, corsHeaders);
-    return res.end(JSON.stringify({ error: error.message }));
+    return res.status(500).json({ error: error.message });
   }
 }
