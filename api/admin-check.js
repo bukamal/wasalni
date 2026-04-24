@@ -9,11 +9,17 @@ export default async function handler(req, res) {
   if (req.method !== 'POST') return res.status(405).json({ error: 'Method not allowed' });
   
   const { chat_id } = req.body;
-  
+  if (!chat_id) return res.status(400).json({ error: 'chat_id مطلوب' });
+
   try {
-    const { data } = await supabase.rpc('is_admin', { p_chat_id: chat_id });
+    const { data, error } = await supabase.rpc('is_admin', { p_chat_id: chat_id });
+    if (error) {
+      console.error('خطأ في استدعاء is_admin:', error);
+      return res.status(500).json({ error: error.message });
+    }
     return res.status(200).json({ isAdmin: !!data });
   } catch (error) {
+    console.error('خطأ في الخادم:', error);
     return res.status(500).json({ error: error.message });
   }
 }

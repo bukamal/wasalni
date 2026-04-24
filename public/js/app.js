@@ -17,17 +17,24 @@
       tg.ready();
       logDebug('Telegram WebApp جاهز');
     } else {
-      logDebug('تحذير: ليس داخل تيليجرام، قد لا تعمل بعض الميزات');
+      logDebug('تحذير: خارج تيليجرام، بعض الميزات قد لا تعمل');
     }
   } catch(e) {
-    logDebug('خطأ في Telegram WebApp: ' + e.message);
+    logDebug('خطأ Telegram WebApp: ' + e.message);
   }
 
   document.addEventListener('DOMContentLoaded', function() {
     logDebug('DOM جاهز، جاري التوجيه...');
     
+    // إمكانية إعادة تعيين التوجيه عبر ?reset في الرابط للاختبار
+    var urlParams = new URLSearchParams(window.location.search);
+    if (urlParams.get('reset') === 'true') {
+      localStorage.removeItem('wasalni_onboarding');
+      logDebug('تمت إعادة تعيين حالة onboarding');
+    }
+
     var done = localStorage.getItem('wasalni_onboarding');
-    logDebug('onboarding done = ' + done);
+    logDebug('onboarding done = ' + (done === 'done' ? 'نعم' : 'لا'));
     
     var delay = done ? 1500 : 2000;
     var target = done ? 'login.html' : 'onboarding.html';
