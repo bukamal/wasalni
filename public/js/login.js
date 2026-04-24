@@ -57,17 +57,17 @@
             setTimeout(() => { adminCard.style.opacity = '1'; }, 10);
             showStatus('', false);
           } else {
-            showStatus('', false); // ليس أدمن، لا مشكلة
+            showStatus('', false);
           }
         } catch (e) {
-          showStatus('خطأ في الاتصال بخادم التحقق من الأدمن', true);
+          showStatus('خطأ في الاتصال بخادم التحقق من الأدمن: ' + e.message, true);
           console.error(e);
         }
       } else {
         showStatus('فشل تسجيل الدخول: ' + (result.error || 'خطأ غير معروف'), true);
       }
     } catch (e) {
-      showStatus('خطأ في الاتصال بخادم تسجيل الدخول', true);
+      showStatus('خطأ في الاتصال بخادم تسجيل الدخول: ' + e.message, true);
       console.error(e);
     }
 

@@ -5,18 +5,40 @@ const supabase = createClient(
   process.env.SUPABASE_SERVICE_ROLE_KEY
 );
 
+const corsHeaders = {
+  'Access-Control-Allow-Origin': '*',
+  'Access-Control-Allow-Headers': 'authorization, x-client-info, apikey, content-type',
+  'Access-Control-Allow-Methods': 'POST, OPTIONS',
+};
+
 export default async function handler(req, res) {
-  if (req.method !== 'POST') return res.status(405).json({ error: 'Method not allowed' });
-  
+  if (req.method === 'OPTIONS') {
+    res.writeHead(200, corsHeaders);
+    return res.end();
+  }
+
+  if (req.method !== 'POST') {
+    res.writeHead(405, corsHeaders);
+    return res.end(JSON.stringify({ error: 'Method not allowed' }));
+  }
+
   const { driver_id, online } = req.body;
-  if (!driver_id) return res.status(400).json({ error: 'driver_id is required' });
-  
+  if (!driver_id) {
+    res.writeHead(400, corsHeaders);
+    return res.end(JSON.stringify({ error: 'driver_id is required' }));
+  }
+
   const status = online ? 'online' : 'offline';
   const { data, error } = await supabase
     .from('drivers')
     .update({ status, updated_at: new Date().toISOString() })
     .eq('id', driver_id);
-  
-  if (error) return res.status(400).json({ error: error.message });
-  return res.status(200).json({ data });
+
+  if (error) {
+    res.writeHead(400, corsHeaders);
+    return res.end(JSON.stringify({ error: error.message }));
+  }
+
+  res.writeHead(200, corsHeaders);
+  return res.end(JSON.stringify({ data }));
 }
