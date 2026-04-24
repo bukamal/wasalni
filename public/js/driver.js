@@ -1,47 +1,44 @@
 (function() {
   const tg = window.Telegram.WebApp;
-  if (tg) {
-    tg.expand();
-    tg.ready();
+  if (tg) { tg.expand(); tg.ready(); }
+
+  async function ensureApproved(requiredRole) {
+    const user = tg?.initDataUnsafe?.user;
+    if (!user) { window.location.href = 'login.html'; return false; }
+    try {
+      const authRes = await fetch('/api/auth', {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({ telegram_id: user.id, chat_id: user.id, full_name: 'check' })
+      });
+      const authData = await authRes.json();
+      if (!authData.user) { window.location.href = 'login.html'; return false; }
+      const res = await fetch('/api/join-request?action=status', {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({ user_id: authData.user.id })
+      });
+      const result = await res.json();
+      const req = result.request;
+      if (req && req.status === 'approved' && req.requested_role === requiredRole) {
+        return authData.user;
+      }
+      window.location.href = 'pending.html';
+      return false;
+    } catch(e) { window.location.href = 'login.html'; return false; }
   }
+
+  document.getElementById('backBtn').addEventListener('click', () => window.location.href = 'login.html');
 
   let currentDriver = null;
   let activeRide = null;
 
-  // أزرار الرجوع والخروج
-  document.getElementById('backBtn').addEventListener('click', () => {
-    window.location.href = 'login.html';
-  });
-  // يمكن إضافة زر خروج منفصل، لكن في التصميم الجديد السائق لا يملك زر خروج واضح، سنضيفه في الهيدر
-  // سنضيف مستمع لزر الخروج (إن أردت) لكن التصميم الحالي للسائق يظهر toggle فقط.
-  // سنضيف زر خروج مؤقت بجانب العنوان (لكن لم نضعه في html)، لذا سنكتفي بالرجوع.
-  
   document.addEventListener('DOMContentLoaded', async () => {
-    const user = tg?.initDataUnsafe?.user;
-    if (!user) {
-      document.body.innerHTML = '<div class="container" style="text-align:center;padding-top:40vh"><h2>⚠️ افتح من تليجرام</h2></div>';
-      return;
-    }
-
-    try {
-      const res = await fetch('/api/auth', {
-        method: 'POST',
-        headers: { 'Content-Type': 'application/json' },
-        body: JSON.stringify({
-          telegram_id: user.id,
-          chat_id: user.id,
-          full_name: user.first_name + ' ' + (user.last_name || ''),
-          role: 'driver'
-        })
-      });
-      const result = await res.json();
-      if (result.user) {
-        document.getElementById('driverName').textContent = result.user.full_name || 'سائق';
-        currentDriver = result.user;
-      }
-    } catch (e) {
-      console.error(e);
-    }
+    const user = await ensureApproved('driver');
+    if (!user) return;
+    
+    currentDriver = user;
+    document.getElementById('driverName').textContent = user.full_name || 'سائق';
 
     document.getElementById('onlineToggle').addEventListener('change', toggleStatus);
     document.getElementById('btnPickedUp').addEventListener('click', () => updateRide('picked_up'));
@@ -63,9 +60,7 @@
         headers: { 'Content-Type': 'application/json' },
         body: JSON.stringify({ driver_id: currentDriver.id, online })
       });
-    } catch (e) {
-      console.error(e);
-    }
+    } catch (e) {}
   }
 
   async function loadRequests() {
@@ -94,12 +89,9 @@
         `;
         list.appendChild(div);
       });
-      // ربط أزرار القبول والرفض
       document.querySelectorAll('.accept-btn').forEach(btn => btn.addEventListener('click', (e) => acceptRide(e.target.dataset.id)));
-      document.querySelectorAll('.reject-btn').forEach(btn => btn.addEventListener('click', (e) => rejectRide(e.target.dataset.id)));
-    } catch (e) {
-      console.error(e);
-    }
+      document.querySelectorAll('.reject-btn').forEach(btn => btn.addEventListener('click', () => loadRequests()));
+    } catch (e) {}
   }
 
   async function acceptRide(rideId) {
@@ -120,13 +112,7 @@
           <p><strong>السعر:</strong> ${result.data.price} ر.س</p>
         `;
       }
-    } catch (e) {
-      console.error(e);
-    }
-  }
-
-  async function rejectRide(rideId) {
-    loadRequests();
+    } catch (e) {}
   }
 
   async function updateRide(status) {
@@ -146,8 +132,6 @@
           loadRequests();
         }
       }
-    } catch (e) {
-      console.error(e);
-    }
+    } catch (e) {}
   }
 })();

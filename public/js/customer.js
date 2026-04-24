@@ -1,47 +1,45 @@
 (function() {
   const tg = window.Telegram.WebApp;
-  if (tg) {
-    tg.expand();
-    tg.ready();
+  if (tg) { tg.expand(); tg.ready(); }
+
+  async function ensureApproved(requiredRole) {
+    const user = tg?.initDataUnsafe?.user;
+    if (!user) { window.location.href = 'login.html'; return false; }
+    try {
+      const authRes = await fetch('/api/auth', {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({ telegram_id: user.id, chat_id: user.id, full_name: 'check' })
+      });
+      const authData = await authRes.json();
+      if (!authData.user) { window.location.href = 'login.html'; return false; }
+      const res = await fetch('/api/join-request?action=status', {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({ user_id: authData.user.id })
+      });
+      const result = await res.json();
+      const req = result.request;
+      if (req && req.status === 'approved' && req.requested_role === requiredRole) {
+        return authData.user;
+      }
+      window.location.href = 'pending.html';
+      return false;
+    } catch(e) { window.location.href = 'login.html'; return false; }
   }
 
-  let currentUser = null;
-
-  // زر الرجوع
-  document.getElementById('backBtn').addEventListener('click', () => {
-    window.location.href = 'login.html';
-  });
-
-  // زر تسجيل الخروج
+  document.getElementById('backBtn').addEventListener('click', () => window.location.href = 'login.html');
   document.getElementById('logoutBtn').addEventListener('click', () => {
     localStorage.clear();
     window.location.href = 'login.html';
   });
 
+  let currentUser = null;
+
   document.addEventListener('DOMContentLoaded', async () => {
-    const user = tg?.initDataUnsafe?.user;
-    if (!user) {
-      document.body.innerHTML = '<div class="container" style="text-align:center;padding-top:40vh"><h2>⚠️ افتح من تليجرام</h2></div>';
-      return;
-    }
-
-    try {
-      const res = await fetch('/api/auth', {
-        method: 'POST',
-        headers: { 'Content-Type': 'application/json' },
-        body: JSON.stringify({
-          telegram_id: user.id,
-          chat_id: user.id,
-          full_name: user.first_name + ' ' + (user.last_name || '')
-        })
-      });
-      const result = await res.json();
-      currentUser = result.user;
-      document.getElementById('userName').textContent = currentUser?.full_name || 'زبون';
-    } catch (e) {
-      console.error(e);
-    }
-
+    currentUser = await ensureApproved('customer');
+    if (!currentUser) return;
+    document.getElementById('userName').textContent = currentUser.full_name || 'زبون';
     document.getElementById('requestRideBtn').addEventListener('click', requestRide);
     loadMyRides();
   });

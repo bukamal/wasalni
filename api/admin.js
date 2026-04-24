@@ -20,6 +20,7 @@ export default async function handler(req, res) {
     if (!isAdmin) return res.status(403).json({ error: 'Unauthorized' });
 
     const { action } = req.query;
+
     if (action === 'stats') {
       const { data: rides } = await supabase.from('rides').select('status');
       const { data: users } = await supabase.from('users').select('role');
@@ -40,6 +41,51 @@ export default async function handler(req, res) {
         .single();
       return res.status(error ? 400 : 200).json({ data, error: error?.message });
     }
+
+    // ---- طلبات الانضمام ----
+    if (action === 'list_join_requests') {
+      const { data } = await supabase
+        .from('join_requests')
+        .select('*, users!join_requests_user_id_fkey(telegram_id, full_name, chat_id, phone)')
+        .order('created_at', { ascending: false });
+      return res.status(200).json({ data });
+    }
+
+    if (action === 'handle_join_request') {
+      const { request_id, status } = req.body;
+      if (!request_id || !status) return res.status(400).json({ error: 'request_id and status required' });
+      if (status !== 'approved' && status !== 'rejected') return res.status(400).json({ error: 'Invalid status' });
+
+      const { data: joinReq, error: fetchError } = await supabase
+        .from('join_requests')
+        .select('*, users!join_requests_user_id_fkey(telegram_id, chat_id)')
+        .eq('id', request_id)
+        .single();
+      if (fetchError || !joinReq) return res.status(404).json({ error: 'Request not found' });
+
+      if (status === 'approved') {
+        const { error: updateUserError } = await supabase
+          .from('users')
+          .update({ role: joinReq.requested_role })
+          .eq('id', joinReq.user_id);
+        if (updateUserError) return res.status(400).json({ error: updateUserError.message });
+
+        if (joinReq.requested_role === 'driver') {
+          await supabase.from('drivers').upsert({ user_id: joinReq.user_id }, { onConflict: 'user_id' });
+        }
+      }
+
+      const { data, error } = await supabase
+        .from('join_requests')
+        .update({ status, updated_at: new Date().toISOString(), admin_id: chat_id })
+        .eq('id', request_id)
+        .select()
+        .single();
+
+      if (error) return res.status(400).json({ error: error.message });
+      return res.status(200).json({ data });
+    }
+
     return res.status(400).json({ error: 'Unknown action' });
   } catch (error) {
     return res.status(500).json({ error: error.message });

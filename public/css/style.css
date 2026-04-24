@@ -669,6 +669,11 @@ input:focus, select:focus {
   justify-content: flex-end;
 }
 
+/* ----- Pending Page ----- */
+.pending-body {
+  background: linear-gradient(135deg, #fef5ee 0%, #ffffff 100%);
+}
+
 /* ----- Utilities ----- */
 .hidden {
   display: none !important;

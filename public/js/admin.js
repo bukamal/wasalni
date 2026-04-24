@@ -7,10 +7,7 @@
 
   let currentFilter = 'all';
 
-  // أزرار الرجوع والخروج
-  document.getElementById('backBtn').addEventListener('click', () => {
-    window.location.href = 'login.html';
-  });
+  document.getElementById('backBtn').addEventListener('click', () => window.location.href = 'login.html');
   document.getElementById('logoutBtn').addEventListener('click', () => {
     localStorage.clear();
     window.location.href = 'login.html';
@@ -18,10 +15,7 @@
 
   document.addEventListener('DOMContentLoaded', async () => {
     const user = tg?.initDataUnsafe?.user;
-    if (!user) {
-      document.body.innerHTML = '<div class="container" style="text-align:center;padding-top:40vh"><h2>⚠️ افتح من تليجرام</h2></div>';
-      return;
-    }
+    if (!user) return;
 
     try {
       const res = await fetch('/api/admin-check', {
@@ -34,11 +28,8 @@
         document.body.innerHTML = '<div class="container" style="text-align:center;padding-top:40vh"><h2>⛔ غير مصرح</h2><p>ليس لديك صلاحية الوصول</p></div>';
         return;
       }
-    } catch (e) {
-      console.error(e);
-    }
+    } catch (e) { return; }
 
-    // ربط التبويبات
     document.getElementById('tabAll').addEventListener('click', (e) => filterRides('all', e.target));
     document.getElementById('tabPending').addEventListener('click', (e) => filterRides('pending', e.target));
     document.getElementById('tabAccepted').addEventListener('click', (e) => filterRides('accepted', e.target));
@@ -46,7 +37,8 @@
 
     loadStats();
     loadRides();
-    setInterval(() => { loadStats(); loadRides(); }, 10000);
+    loadJoinRequests();
+    setInterval(() => { loadStats(); loadRides(); loadJoinRequests(); }, 10000);
   });
 
   async function loadStats() {
@@ -60,9 +52,56 @@
       document.getElementById('totalRides').textContent = rides?.length || 0;
       document.getElementById('totalDrivers').textContent = users?.filter(u => u.role === 'driver').length || 0;
       document.getElementById('totalCustomers').textContent = users?.filter(u => u.role === 'customer').length || 0;
-    } catch (e) {
-      console.error(e);
-    }
+    } catch (e) {}
+  }
+
+  async function loadJoinRequests() {
+    try {
+      const res = await fetch('/api/admin?action=list_join_requests', {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({ chat_id: tg.initDataUnsafe.user.id })
+      });
+      const { data } = await res.json();
+      const list = document.getElementById('joinRequestsList');
+      list.innerHTML = '';
+      document.getElementById('joinRequestsCount').textContent = data?.length || 0;
+      if (!data || data.length === 0) {
+        list.innerHTML = '<div class="list-item" style="justify-content:center;color:var(--text-light)">لا توجد طلبات انضمام</div>';
+        return;
+      }
+      data.forEach(req => {
+        const div = document.createElement('div');
+        div.className = 'list-item';
+        div.innerHTML = `
+          <div class="info" style="width:100%">
+            <strong>${req.users?.full_name || 'مجهول'}</strong>
+            <small>${req.requested_role === 'driver' ? '🚗 سائق' : '👤 زبون'}</small>
+            <small>الحالة: ${req.status === 'pending' ? 'قيد الانتظار' : req.status === 'approved' ? '✅ مقبول' : '❌ مرفوض'}</small>
+          </div>
+          ${req.status === 'pending' ? `
+          <div class="actions">
+            <button class="btn-success approve-btn" data-id="${req.id}">قبول</button>
+            <button class="btn-danger reject-btn" data-id="${req.id}">رفض</button>
+          </div>` : ''}
+        `;
+        list.appendChild(div);
+      });
+      document.querySelectorAll('.approve-btn').forEach(btn => btn.addEventListener('click', (e) => handleJoinRequest(e.target.dataset.id, 'approved')));
+      document.querySelectorAll('.reject-btn').forEach(btn => btn.addEventListener('click', (e) => handleJoinRequest(e.target.dataset.id, 'rejected')));
+    } catch (e) {}
+  }
+
+  async function handleJoinRequest(requestId, status) {
+    try {
+      await fetch('/api/admin?action=handle_join_request', {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({ chat_id: tg.initDataUnsafe.user.id, request_id: requestId, status })
+      });
+      loadJoinRequests();
+      loadStats();
+    } catch (e) {}
   }
 
   async function loadRides() {
@@ -109,7 +148,6 @@
         list.appendChild(div);
       });
 
-      // ربط أزرار الإدارة
       document.querySelectorAll('.manage-btn').forEach(btn => {
         btn.addEventListener('click', (e) => {
           const id = e.target.dataset.id;
@@ -117,9 +155,7 @@
           manageRide(id, status);
         });
       });
-    } catch (e) {
-      console.error(e);
-    }
+    } catch (e) {}
   }
 
   function getStatusText(status) {
@@ -152,8 +188,6 @@
         loadStats();
         loadRides();
       }
-    } catch (e) {
-      console.error(e);
-    }
+    } catch (e) {}
   }
 })();
