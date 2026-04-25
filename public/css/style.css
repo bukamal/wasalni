@@ -674,6 +674,43 @@ input:focus, select:focus {
   background: linear-gradient(135deg, #fef5ee 0%, #ffffff 100%);
 }
 
+/* ----- Map Container ----- */
+#map-container {
+  height: 300px;
+  border-radius: var(--radius);
+  overflow: hidden;
+  margin-bottom: 16px;
+  box-shadow: var(--shadow-lg);
+}
+#map {
+  height: 100%;
+  width: 100%;
+}
+
+/* ----- Ride Options Card ----- */
+.ride-options .input-row {
+  display: flex;
+  gap: 10px;
+}
+.ride-options .input-row .input-group {
+  flex: 1;
+}
+
+/* ----- Driver Marker (on map) ----- */
+.driver-marker {
+  background: var(--primary);
+  color: white;
+  border-radius: 50%;
+  width: 24px;
+  height: 24px;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  font-size: 14px;
+  border: 2px solid white;
+  box-shadow: 0 2px 5px rgba(0,0,0,0.3);
+}
+
 /* ----- Utilities ----- */
 .hidden {
   display: none !important;

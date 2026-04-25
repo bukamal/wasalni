@@ -5,6 +5,7 @@
   <meta name="viewport" content="width=device-width, initial-scale=1.0, user-scalable=no">
   <title>الزبون - وصلني</title>
   <script src="https://telegram.org/js/telegram-web-app.js"></script>
+  <link rel="stylesheet" href="https://unpkg.com/leaflet@1.9.4/dist/leaflet.css" />
   <link rel="stylesheet" href="css/style.css">
 </head>
 <body class="app-body">
@@ -18,27 +19,64 @@
       <button class="icon-btn" id="logoutBtn">🚪</button>
     </header>
 
-    <div class="card ride-form" id="requestForm">
+    <div id="map-container">
+      <div id="map"></div>
+    </div>
+
+    <!-- خيارات الرحلة -->
+    <div class="card ride-options">
       <div class="card-header">
-        <h3>📝 طلب مشوار جديد</h3>
+        <h3>📍 تفاصيل الرحلة</h3>
       </div>
+
       <div class="input-group">
-        <label>📍 موقع الالتقاط</label>
-        <input type="text" id="pickup" placeholder="أدخل موقعك الحالي">
+        <label>📌 نقطة الالتقاط</label>
+        <input type="text" id="pickup" placeholder="موقعك الحالي" readonly>
       </div>
       <div class="input-group">
         <label>🏁 الوجهة</label>
-        <input type="text" id="dropoff" placeholder="أدخل وجهتك">
+        <input type="text" id="dropoff" placeholder="اختر الوجهة على الخريطة">
       </div>
+
+      <div class="input-row">
+        <div class="input-group">
+          <label>👤 جنس السائق</label>
+          <select id="driverGender">
+            <option value="any">لا يهم</option>
+            <option value="male">ذكر</option>
+            <option value="female">أنثى</option>
+          </select>
+        </div>
+        <div class="input-group">
+          <label>🚘 نوع المركبة</label>
+          <select id="vehicleType">
+            <option value="car">سيارة</option>
+            <option value="van">فان</option>
+            <option value="motorcycle">دراجة</option>
+          </select>
+        </div>
+      </div>
+
       <div class="input-group">
         <label>💰 السعر المقترح (ر.س)</label>
         <input type="number" id="price" placeholder="0.00">
       </div>
+
       <button class="btn-primary" id="requestRideBtn">
         <span>🚕</span> طلب مشوار
       </button>
     </div>
 
+    <!-- السائقون القريبون (قبل الطلب) -->
+    <div class="card hidden" id="nearbyDriversCard">
+      <div class="card-header">
+        <h3>🚗 سائقون قريبون</h3>
+        <span class="badge-count" id="nearbyCount">0</span>
+      </div>
+      <div id="nearbyDriversList" class="list"></div>
+    </div>
+
+    <!-- حالة الرحلة بعد الطلب -->
     <div class="card hidden" id="rideStatus">
       <div class="status-header">
         <h3>جاري البحث عن سائق...</h3>
@@ -50,6 +88,7 @@
       <p class="status-text">سيتم إخطارك عند قبول الطلب</p>
     </div>
 
+    <!-- سجل المشاوير -->
     <div class="card">
       <div class="card-header">
         <h3>📋 سجل مشاويري</h3>
@@ -60,6 +99,7 @@
   </div>
 
   <script src="https://cdn.jsdelivr.net/npm/@supabase/supabase-js@2"></script>
+  <script src="https://unpkg.com/leaflet@1.9.4/dist/leaflet.js"></script>
   <script src="js/customer.js"></script>
 </body>
 </html>
