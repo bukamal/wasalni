@@ -44,7 +44,6 @@ export default async function handler(req, res) {
       return res.status(error ? 400 : 200).json({ data, error: error?.message });
     }
 
-    // ---- طلبات الانضمام ----
     if (action === 'list_join_requests') {
       const { data: requests, error: reqError } = await supabase
         .from('join_requests')
@@ -76,7 +75,6 @@ export default async function handler(req, res) {
       if (!request_id || !status) return res.status(400).json({ error: 'request_id and status required' });
       if (status !== 'approved' && status !== 'rejected') return res.status(400).json({ error: 'Invalid status' });
 
-      // جلب الطلب
       const { data: joinReq, error: fetchError } = await supabase
         .from('join_requests')
         .select('*, users!join_requests_user_id_fkey(telegram_id, chat_id)')
@@ -84,7 +82,6 @@ export default async function handler(req, res) {
         .single();
       if (fetchError || !joinReq) return res.status(404).json({ error: 'Request not found' });
 
-      // جلب UUID الأدمن
       const { data: adminUser, error: adminError } = await supabase
         .from('users')
         .select('id')
@@ -94,14 +91,12 @@ export default async function handler(req, res) {
       const adminUuid = adminUser.id;
 
       if (status === 'approved') {
-        // تحديث دور المستخدم
         const { error: updateUserError } = await supabase
           .from('users')
           .update({ role: joinReq.requested_role })
           .eq('id', joinReq.user_id);
         if (updateUserError) return res.status(400).json({ error: updateUserError.message });
 
-        // إنشاء سجل سائق إذا لزم دون مسح البيانات
         if (joinReq.requested_role === 'driver') {
           const { data: existingDriver } = await supabase
             .from('drivers')
@@ -114,7 +109,6 @@ export default async function handler(req, res) {
         }
       }
 
-      // تحديث حالة الطلب باستخدام adminUuid
       const { data, error } = await supabase
         .from('join_requests')
         .update({ status, updated_at: new Date().toISOString(), admin_id: adminUuid })
@@ -124,6 +118,35 @@ export default async function handler(req, res) {
 
       if (error) return res.status(400).json({ error: error.message });
       return res.status(200).json({ data });
+    }
+
+    // ---- حذف مستخدم كامل ----
+    if (action === 'delete_user') {
+      const { user_id } = req.body;
+      if (!user_id) return res.status(400).json({ error: 'user_id required' });
+
+      const { data: userToDelete } = await supabase.from('users').select('role').eq('id', user_id).single();
+      if (!userToDelete) return res.status(404).json({ error: 'User not found' });
+      if (userToDelete.role === 'admin') return res.status(403).json({ error: 'Cannot delete admin' });
+
+      // حذف الرحلات المرتبطة
+      await supabase.from('rides').delete().eq('customer_id', user_id);
+      const { data: driverData } = await supabase.from('drivers').select('id').eq('user_id', user_id).maybeSingle();
+      if (driverData) {
+        await supabase.from('rides').delete().eq('driver_id', driverData.id);
+      }
+
+      // حذف سجل السائق
+      await supabase.from('drivers').delete().eq('user_id', user_id);
+
+      // حذف طلبات الانضمام
+      await supabase.from('join_requests').delete().eq('user_id', user_id);
+
+      // حذف المستخدم
+      const { error: deleteError } = await supabase.from('users').delete().eq('id', user_id);
+      if (deleteError) return res.status(400).json({ error: deleteError.message });
+
+      return res.status(200).json({ success: true });
     }
 
     return res.status(400).json({ error: 'Unknown action' });

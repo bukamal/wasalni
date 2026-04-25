@@ -7,7 +7,6 @@
 
   let currentFilter = 'all';
 
-  // دوال مساعدة
   function getJoinStatusText(status) {
     const map = { 'pending': 'قيد الانتظار', 'approved': '✅ مقبول', 'rejected': '❌ مرفوض' };
     return map[status] || status;
@@ -18,19 +17,16 @@
     return map[status] || status;
   }
 
-  // الخروج والرجوع
   document.getElementById('backBtn').addEventListener('click', () => window.location.href = 'login.html');
   document.getElementById('logoutBtn').addEventListener('click', () => {
     localStorage.clear();
     window.location.href = 'login.html';
   });
 
-  // ----- تحميل أولي -----
   document.addEventListener('DOMContentLoaded', async () => {
     const user = tg?.initDataUnsafe?.user;
     if (!user) return;
 
-    // تحقق من الصلاحية
     try {
       const res = await fetch('/api/admin-check', {
         method: 'POST', headers: { 'Content-Type': 'application/json' },
@@ -43,13 +39,11 @@
       }
     } catch (e) { return; }
 
-    // تبويبات المشاوير
     document.getElementById('tabAll').addEventListener('click', (e) => filterRides('all', e.target));
     document.getElementById('tabPending').addEventListener('click', (e) => filterRides('pending', e.target));
     document.getElementById('tabAccepted').addEventListener('click', (e) => filterRides('accepted', e.target));
     document.getElementById('tabCompleted').addEventListener('click', (e) => filterRides('completed', e.target));
 
-    // تحميل البيانات
     await loadStats();
     await loadJoinRequests();
     await loadRides();
@@ -61,7 +55,6 @@
     }, 10000);
   });
 
-  // ========== إحصائيات ==========
   async function loadStats() {
     try {
       const res = await fetch('/api/admin?action=stats', {
@@ -75,7 +68,6 @@
     } catch (e) {}
   }
 
-  // ========== طلبات الانضمام ==========
   async function loadJoinRequests() {
     try {
       const res = await fetch('/api/admin?action=list_join_requests', {
@@ -108,21 +100,29 @@
             <small>📞 ${user?.phone || 'لا يوجد'}</small>
             ${isDriver && driver ? `<div style="margin-top:6px"><small>🚘 ${driver.car_model || 'غير محدد'}</small><br><small>🔢 ${driver.car_plate || 'غير محدد'}</small></div>` : ''}
           </div>
-          ${req.status === 'pending' ? `
-          <div class="actions">
-            <button class="btn-success approve-btn" data-id="${req.id}">قبول</button>
-            <button class="btn-danger reject-btn" data-id="${req.id}">رفض</button>
-          </div>` : ''}
+          <div class="actions" style="margin-top:8px; display:flex; gap:8px;">
+            ${req.status === 'pending' ? `
+              <button class="btn-success approve-btn" data-id="${req.id}">قبول</button>
+              <button class="btn-danger reject-btn" data-id="${req.id}">رفض</button>
+            ` : ''}
+            <button class="btn-danger delete-user-btn" data-userid="${req.user_id}">🗑 حذف</button>
+          </div>
         `;
         list.appendChild(div);
       });
 
-      // ربط الأزرار مباشرة بعد الإدراج (طريقة آمنة)
       list.querySelectorAll('.approve-btn').forEach(btn => {
         btn.onclick = () => handleJoinRequest(btn.dataset.id, 'approved');
       });
       list.querySelectorAll('.reject-btn').forEach(btn => {
         btn.onclick = () => handleJoinRequest(btn.dataset.id, 'rejected');
+      });
+      list.querySelectorAll('.delete-user-btn').forEach(btn => {
+        btn.onclick = () => {
+          if (confirm('هل أنت متأكد من حذف هذا المستخدم وكل بياناته؟')) {
+            deleteUser(btn.dataset.userid);
+          }
+        };
       });
 
     } catch (e) {}
@@ -143,11 +143,30 @@
         tg?.showAlert('خطأ: ' + (err.error || 'فشل'));
       }
     } catch (e) {
-      tg?.showAlert('حدث خطأ في الاتصال');
+      tg?.showAlert('حدث خطأ');
     }
   }
 
-  // ========== المشاوير ==========
+  async function deleteUser(userId) {
+    try {
+      const res = await fetch('/api/admin?action=delete_user', {
+        method: 'POST', headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({ chat_id: tg.initDataUnsafe.user.id, user_id: userId })
+      });
+      if (res.ok) {
+        tg?.showAlert('✅ تم حذف المستخدم وكل بياناته');
+        loadJoinRequests();
+        loadStats();
+      } else {
+        const err = await res.json();
+        tg?.showAlert('❌ ' + (err.error || 'فشل الحذف'));
+      }
+    } catch(e) {
+      tg?.showAlert('❌ خطأ في الاتصال');
+    }
+  }
+
+  // دوال المشاوير ...
   async function loadRides() {
     try {
       const res = await fetch('/api/admin?action=all_rides', {
