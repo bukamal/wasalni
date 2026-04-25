@@ -22,11 +22,11 @@
       return;
     }
 
-    // تسجيل المستخدم تلقائياً (دور customer مؤقتاً)
+    let currentUserId = null;
+    // تسجيل الدخول / جلب user_id
     try {
       const res = await fetch('/api/auth', {
-        method: 'POST',
-        headers: { 'Content-Type': 'application/json' },
+        method: 'POST', headers: { 'Content-Type': 'application/json' },
         body: JSON.stringify({
           telegram_id: user.id,
           chat_id: user.id,
@@ -36,10 +36,12 @@
       });
       const result = await res.json();
       if (result.user) {
+        currentUserId = result.user.id;
+        localStorage.setItem('wasalni_user_id', currentUserId);
+        // التحقق من صلاحية الأدمن
         try {
           const adminRes = await fetch('/api/admin-check', {
-            method: 'POST',
-            headers: { 'Content-Type': 'application/json' },
+            method: 'POST', headers: { 'Content-Type': 'application/json' },
             body: JSON.stringify({ chat_id: user.id })
           });
           const adminResult = await adminRes.json();
@@ -53,15 +55,43 @@
       }
     } catch (e) {
       showStatus('خطأ في الاتصال', true);
+      return;
     }
 
-    // الأزرار: توجيه إلى صفحة التسجيل المناسبة
-    document.getElementById('roleCustomer').addEventListener('click', () => {
-      window.location.href = 'register.html?role=customer';
-    });
-    document.getElementById('roleDriver').addEventListener('click', () => {
-      window.location.href = 'register.html?role=driver';
-    });
+    // دالة التحقق من حالة الطلب وتوجيه المستخدم
+    async function checkAndNavigate(role) {
+      if (!currentUserId) return;
+      try {
+        const res = await fetch('/api/join-request?action=status', {
+          method: 'POST', headers: { 'Content-Type': 'application/json' },
+          body: JSON.stringify({ user_id: currentUserId })
+        });
+        const data = await res.json();
+        const req = data.request;
+        if (req) {
+          if (req.status === 'approved') {
+            // تمت الموافقة، انتقل مباشرة للوحة
+            localStorage.setItem('wasalni_role', req.requested_role);
+            window.location.href = req.requested_role === 'driver' ? 'driver.html' : 'customer.html';
+          } else if (req.status === 'pending') {
+            localStorage.setItem('wasalni_role', role);
+            window.location.href = 'pending.html';
+          } else if (req.status === 'rejected') {
+            showStatus('❌ تم رفض طلبك السابق. يمكنك تقديم طلب جديد.', true);
+            // انتقل للتسجيل لإعادة التقديم (يمكن للمستخدم تعديل بياناته)
+            window.location.href = 'register.html?role=' + role;
+          }
+        } else {
+          // لا يوجد طلب سابق -> اذهب للتسجيل
+          window.location.href = 'register.html?role=' + role;
+        }
+      } catch(e) {
+        showStatus('خطأ في التحقق من الحالة', true);
+      }
+    }
+
+    document.getElementById('roleCustomer').addEventListener('click', () => checkAndNavigate('customer'));
+    document.getElementById('roleDriver').addEventListener('click', () => checkAndNavigate('driver'));
     document.getElementById('roleAdmin').addEventListener('click', () => {
       localStorage.setItem('wasalni_role', 'admin');
       window.location.href = 'admin.html';

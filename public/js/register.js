@@ -12,50 +12,79 @@
       return;
     }
 
-    if (role === 'customer') {
-      document.getElementById('formTitle').textContent = 'تسجيل زبون';
-      document.getElementById('customerFields').classList.remove('hidden');
-    } else if (role === 'driver') {
-      document.getElementById('formTitle').textContent = 'تسجيل سائق';
-      document.getElementById('driverFields').classList.remove('hidden');
-    } else {
+    if (role !== 'customer' && role !== 'driver') {
       window.location.href = 'login.html';
       return;
     }
 
-    // تسجيل الدخول / إنشاء المستخدم أولاً
-    let currentUserId = null;
-    try {
-      const res = await fetch('/api/auth', {
-        method: 'POST', headers: { 'Content-Type': 'application/json' },
-        body: JSON.stringify({
-          telegram_id: user.id,
-          chat_id: user.id,
-          full_name: user.first_name + ' ' + (user.last_name || ''),
-          role: 'customer' // مؤقت
-        })
-      });
-      const result = await res.json();
-      if (result.user) {
-        currentUserId = result.user.id;
-        // تخزين user_id لاستخدامه لاحقًا
-        localStorage.setItem('wasalni_user_id', currentUserId);
-      } else {
-        tg?.showAlert('فشل في إنشاء الحساب');
-        return;
-      }
-    } catch(e) {
-      tg?.showAlert('خطأ في الاتصال');
+    if (role === 'customer') {
+      document.getElementById('formTitle').textContent = 'تسجيل زبون';
+      document.getElementById('customerFields').classList.remove('hidden');
+    } else {
+      document.getElementById('formTitle').textContent = 'تسجيل سائق';
+      document.getElementById('driverFields').classList.remove('hidden');
+    }
+
+    // تسجيل الدخول / الحصول على user_id
+    let currentUserId = localStorage.getItem('wasalni_user_id');
+    if (!currentUserId) {
+      try {
+        const res = await fetch('/api/auth', {
+          method: 'POST', headers: { 'Content-Type': 'application/json' },
+          body: JSON.stringify({
+            telegram_id: user.id,
+            chat_id: user.id,
+            full_name: user.first_name + ' ' + (user.last_name || ''),
+            role: 'customer'
+          })
+        });
+        const result = await res.json();
+        if (result.user) {
+          currentUserId = result.user.id;
+          localStorage.setItem('wasalni_user_id', currentUserId);
+        }
+      } catch(e) {}
+    }
+
+    if (!currentUserId) {
+      tg?.showAlert('فشل في التحقق من الحساب');
       return;
     }
 
-    document.getElementById('submitBtn').addEventListener('click', async () => {
-      if (!currentUserId) return;
+    // التحقق من حالة الطلب قبل السماح بالتسجيل
+    try {
+      const res = await fetch('/api/join-request?action=status', {
+        method: 'POST', headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({ user_id: currentUserId })
+      });
+      const data = await res.json();
+      const req = data.request;
+      if (req) {
+        if (req.status === 'approved') {
+          // تمت الموافقة بالفعل، انتقل مباشرة
+          localStorage.setItem('wasalni_role', req.requested_role);
+          window.location.href = req.requested_role === 'driver' ? 'driver.html' : 'customer.html';
+          return;
+        } else if (req.status === 'rejected') {
+          // مسح الطلب المرفوض للسماح بطلب جديد (يمكن التقديم)
+          // نستمر في الصفحة الحالية
+        } else if (req.status === 'pending') {
+          // الطلب قيد الانتظار، لا داعي لإعادة التسجيل
+          tg?.showAlert('لديك طلب قيد المراجعة بالفعل');
+          setTimeout(() => {
+            window.location.href = 'pending.html';
+          }, 1500);
+          return;
+        }
+      }
+    } catch(e) {}
 
+    // منطق تقديم الطلب (كما في السابق)
+    document.getElementById('submitBtn').addEventListener('click', async () => {
       const phone = role === 'customer' ? document.getElementById('phone').value : document.getElementById('phoneDriver').value;
       if (!phone) { tg?.showAlert('يرجى إدخال رقم الهاتف'); return; }
 
-      // تحديث رقم الهاتف
+      // تحديث بيانات المستخدم
       try {
         await fetch('/api/auth', {
           method: 'POST', headers: { 'Content-Type': 'application/json' },
@@ -69,7 +98,6 @@
         });
       } catch(e) {}
 
-      // إذا كان سائق، أرسل بيانات السيارة
       if (role === 'driver') {
         const carModel = document.getElementById('carModel').value;
         const carPlate = document.getElementById('carPlate').value;
@@ -92,13 +120,11 @@
         if (joinData.request) {
           localStorage.setItem('wasalni_role', role);
           tg?.showAlert('✅ تم إرسال طلب الانضمام');
-          // انتظر قليلاً ثم انتقل
           setTimeout(() => {
             window.location.href = 'pending.html';
           }, 1000);
         } else {
-          const errMsg = joinData.error || 'حدث خطأ غير معروف';
-          tg?.showAlert('❌ ' + errMsg);
+          tg?.showAlert('❌ ' + (joinData.error || 'حدث خطأ'));
         }
       } catch(e) {
         tg?.showAlert('❌ فشل الاتصال بالخادم');
