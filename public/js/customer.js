@@ -126,7 +126,7 @@
       div.innerHTML = `
         <div class="info">
           <strong>${driver.full_name || 'سائق'}</strong>
-          <small>🚘 ${driver.vehicle_type || 'سيارة'} · ${driver.distance} كم</small>
+          <small>🚘 ${driver.car_model || 'سيارة'} · ${driver.distance} كم</small>
         </div>
         <span class="badge badge-accepted">متاح</span>
       `;
