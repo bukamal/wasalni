@@ -6,7 +6,7 @@
     const user = tg?.initDataUnsafe?.user;
     if (!user) { window.location.href = 'login.html'; return false; }
 
-    let userId = localStorage.getItem('wasalni_user_id');
+    let userId = AppState.userId;
     if (!userId) {
       try {
         const authRes = await fetch('/api/auth', {
@@ -16,7 +16,7 @@
         const authData = await authRes.json();
         if (authData.user) {
           userId = authData.user.id;
-          localStorage.setItem('wasalni_user_id', userId);
+          AppState.userId = userId;
         }
       } catch(e) {}
     }
@@ -38,6 +38,7 @@
   }
 
   document.getElementById('backBtn').addEventListener('click', () => window.location.href = 'login.html');
+  document.getElementById('profileBtn').addEventListener('click', () => window.location.href = 'profile.html');
 
   let currentDriverId = null;
   let activeRide = null;
@@ -76,7 +77,6 @@
     document.getElementById('onlineToggle').addEventListener('change', toggleStatus);
     document.getElementById('btnPickedUp').addEventListener('click', () => updateRide('picked_up'));
     document.getElementById('btnCompleted').addEventListener('click', () => {
-      // طلب تقييم قبل الإكمال
       const rating = prompt('قيّم الزبون من 1 إلى 5:');
       if (rating && !isNaN(rating)) {
         updateRide('completed', parseFloat(rating));
@@ -89,7 +89,6 @@
     setInterval(loadRequests, 10000);
   });
 
-  // إيقاف التتبع عند الخروج
   window.addEventListener('beforeunload', stopSendingLocation);
 
   async function toggleStatus() {
@@ -165,4 +164,10 @@
       }
     }
   }
+
+  // خروج آمن
+  document.getElementById('backBtn').addEventListener('click', () => {
+    stopSendingLocation();
+    window.location.href = 'login.html';
+  });
 })();

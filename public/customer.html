@@ -16,7 +16,10 @@
         <h2>👤 وصلني</h2>
         <span id="userName" class="user-name">زبون</span>
       </div>
-      <button class="icon-btn" id="logoutBtn">🚪</button>
+      <div style="display:flex; gap:8px;">
+        <button class="icon-btn" id="profileBtn" title="الملف الشخصي">👤</button>
+        <button class="icon-btn" id="logoutBtn">🚪</button>
+      </div>
     </header>
 
     <div id="map-container">
@@ -100,6 +103,7 @@
 
   <script src="https://cdn.jsdelivr.net/npm/@supabase/supabase-js@2"></script>
   <script src="https://unpkg.com/leaflet@1.9.4/dist/leaflet.js"></script>
+  <script src="js/state.js"></script>
   <script src="js/customer.js"></script>
 </body>
 </html>

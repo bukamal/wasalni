@@ -1,0 +1,80 @@
+<!DOCTYPE html>
+<html lang="ar" dir="rtl">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0, user-scalable=no">
+  <title>الملف الشخصي - وصلني</title>
+  <script src="https://telegram.org/js/telegram-web-app.js"></script>
+  <link rel="stylesheet" href="css/style.css">
+</head>
+<body class="app-body">
+  <div class="container">
+    <header class="page-header">
+      <button class="back-btn" id="backBtn">← رجوع</button>
+      <h2>👤 الملف الشخصي</h2>
+      <button class="icon-btn" id="logoutBtn">🚪</button>
+    </header>
+
+    <div class="card">
+      <div class="profile-header">
+        <div class="profile-avatar" id="profileAvatar">👤</div>
+        <h3 id="displayName">...</h3>
+        <span id="roleBadge" class="badge badge-accepted">زبون</span>
+      </div>
+
+      <div class="stats-mini" id="statsMini">
+        <div class="stat-item">
+          <span class="stat-num" id="totalRidesCount">0</span>
+          <small>مشاوير</small>
+        </div>
+        <div class="stat-item">
+          <span class="stat-num" id="userRating">5.0</span>
+          <small>التقييم</small>
+        </div>
+      </div>
+    </div>
+
+    <div class="card">
+      <div class="card-header"><h3>✏️ تعديل البيانات</h3></div>
+      <div class="input-group">
+        <label>الاسم الكامل</label>
+        <input type="text" id="fullName" placeholder="اسمك">
+      </div>
+      <div class="input-group">
+        <label>رقم الهاتف</label>
+        <input type="tel" id="phone" placeholder="05xxxxxxxx">
+      </div>
+      <div class="input-group">
+        <label>الجنس</label>
+        <select id="gender">
+          <option value="male">ذكر</option>
+          <option value="female">أنثى</option>
+        </select>
+      </div>
+      <div id="driverExtra" class="hidden">
+        <div class="input-group">
+          <label>موديل السيارة</label>
+          <input type="text" id="carModel" placeholder="تويوتا كامري 2022">
+        </div>
+        <div class="input-group">
+          <label>رقم اللوحة</label>
+          <input type="text" id="carPlate" placeholder="أ ب ج 1234">
+        </div>
+        <div class="input-group">
+          <label>نوع المركبة</label>
+          <select id="vehicleType">
+            <option value="car">سيارة</option>
+            <option value="van">فان</option>
+            <option value="motorcycle">دراجة</option>
+          </select>
+        </div>
+      </div>
+      <button class="btn-primary" id="saveBtn">💾 حفظ التغييرات</button>
+    </div>
+  </div>
+
+  <script src="https://cdn.jsdelivr.net/npm/@supabase/supabase-js@2"></script>
+  <script src="js/state.js"></script>
+  <script src="js/profile.js"></script>
+</body>
+</html>

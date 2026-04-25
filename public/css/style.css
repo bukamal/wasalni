@@ -711,6 +711,35 @@ input:focus, select:focus {
   box-shadow: 0 2px 5px rgba(0,0,0,0.3);
 }
 
+/* ----- Profile Page ----- */
+.profile-header {
+  text-align: center;
+  margin-bottom: 20px;
+}
+.profile-avatar {
+  font-size: 3rem;
+  margin-bottom: 10px;
+}
+.stats-mini {
+  display: flex;
+  justify-content: center;
+  gap: 30px;
+  margin-top: 15px;
+}
+.stat-item {
+  text-align: center;
+}
+.stat-num {
+  font-size: 1.5rem;
+  font-weight: 800;
+  display: block;
+  line-height: 1;
+}
+.stat-item small {
+  color: var(--text-light);
+  font-size: 0.8rem;
+}
+
 /* ----- Utilities ----- */
 .hidden {
   display: none !important;

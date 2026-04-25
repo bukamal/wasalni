@@ -15,13 +15,14 @@
         <h2>🚗 لوحة السائق</h2>
         <span id="driverName" class="user-name">سائق</span>
       </div>
-      <label class="status-switch">
-        <input type="checkbox" id="onlineToggle">
-        <span class="switch-track">
-          <span class="switch-thumb"></span>
-        </span>
-        <span id="statusLabel" class="status-text">غير متاح</span>
-      </label>
+      <div style="display:flex; gap:8px;">
+        <button class="icon-btn" id="profileBtn" title="الملف الشخصي">👤</button>
+        <label class="status-switch">
+          <input type="checkbox" id="onlineToggle">
+          <span class="switch-track"><span class="switch-thumb"></span></span>
+          <span id="statusLabel" class="status-text">غير متاح</span>
+        </label>
+      </div>
     </header>
 
     <div class="card" id="requestsCard">
@@ -53,6 +54,7 @@
   </div>
 
   <script src="https://cdn.jsdelivr.net/npm/@supabase/supabase-js@2"></script>
+  <script src="js/state.js"></script>
   <script src="js/driver.js"></script>
 </body>
 </html>
