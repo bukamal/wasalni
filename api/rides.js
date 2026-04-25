@@ -17,9 +17,11 @@ export default async function handler(req, res) {
 
   try {
     if (action === 'create') {
-      const { data, error } = await supabase.from('rides').insert(req.body).select().single();
+      const body = req.body;
+      const { data, error } = await supabase.from('rides').insert(body).select().single();
       return res.status(error ? 400 : 200).json({ data, error: error?.message });
     }
+
     if (action === 'list') {
       const { data, error } = await supabase.from('rides')
         .select('*, users!rides_customer_id_fkey(full_name, phone)')
@@ -27,13 +29,17 @@ export default async function handler(req, res) {
         .order('created_at', { ascending: false });
       return res.status(error ? 400 : 200).json({ data, error: error?.message });
     }
+
     if (action === 'update') {
-      const { id, status, driver_id } = req.body;
+      const { id, status, driver_id, rating, feedback } = req.body;
       const update = { status, updated_at: new Date().toISOString() };
       if (driver_id) update.driver_id = driver_id;
+      if (rating) update.rating = rating;
+      if (feedback) update.feedback = feedback;
       const { data, error } = await supabase.from('rides').update(update).eq('id', id).select().single();
       return res.status(error ? 400 : 200).json({ data, error: error?.message });
     }
+
     if (action === 'myrides') {
       const { user_id } = req.body;
       const { data, error } = await supabase.from('rides')
@@ -42,6 +48,25 @@ export default async function handler(req, res) {
         .order('created_at', { ascending: false });
       return res.status(error ? 400 : 200).json({ data, error: error?.message });
     }
+
+    // 🆕 تتبع السائق للرحلة النشطة
+    if (action === 'track') {
+      const { ride_id } = req.body;
+      if (!ride_id) return res.status(400).json({ error: 'ride_id required' });
+
+      // جلب الرحلة مع السائق
+      const { data: ride, error: rideError } = await supabase
+        .from('rides')
+        .select('id, status, drivers!rides_driver_id_fkey(current_lat, current_lng, user_id, car_model, car_plate, users!drivers_user_id_fkey(full_name, phone, gender))')
+        .eq('id', ride_id)
+        .single();
+
+      if (rideError) return res.status(400).json({ error: rideError.message });
+      if (!ride) return res.status(404).json({ error: 'Ride not found' });
+
+      return res.status(200).json({ data: ride });
+    }
+
     return res.status(400).json({ error: 'Unknown action' });
   } catch (error) {
     return res.status(500).json({ error: error.message });

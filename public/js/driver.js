@@ -20,7 +20,6 @@
         }
       } catch(e) {}
     }
-
     if (!userId) { window.location.href = 'login.html'; return false; }
 
     try {
@@ -38,6 +37,132 @@
     } catch(e) { window.location.href = 'pending.html'; return false; }
   }
 
-  // باقي كود السائق دون تغيير (loadRequests, acceptRide, updateRide, إلخ)
-  // ... (مطابق للسابق)
+  document.getElementById('backBtn').addEventListener('click', () => window.location.href = 'login.html');
+
+  let currentDriverId = null;
+  let activeRide = null;
+  let locationInterval = null;
+
+  // ---------- إرسال الموقع دورياً ----------
+  function startSendingLocation() {
+    if (!navigator.geolocation) return;
+    locationInterval = setInterval(() => {
+      navigator.geolocation.getCurrentPosition(pos => {
+        if (!currentDriverId) return;
+        fetch('/api/update-location', {
+          method: 'POST', headers: { 'Content-Type': 'application/json' },
+          body: JSON.stringify({
+            driver_id: currentDriverId,
+            lat: pos.coords.latitude,
+            lng: pos.coords.longitude
+          })
+        }).catch(() => {});
+      }, err => {}, { enableHighAccuracy: true, maximumAge: 10000 });
+    }, 10000); // كل 10 ثوان
+  }
+
+  function stopSendingLocation() {
+    if (locationInterval) clearInterval(locationInterval);
+  }
+
+  // ---------- التهيئة ----------
+  document.addEventListener('DOMContentLoaded', async () => {
+    currentDriverId = await ensureApproved('driver');
+    if (!currentDriverId) return;
+
+    const user = tg?.initDataUnsafe?.user;
+    document.getElementById('driverName').textContent = user?.first_name || 'سائق';
+
+    document.getElementById('onlineToggle').addEventListener('change', toggleStatus);
+    document.getElementById('btnPickedUp').addEventListener('click', () => updateRide('picked_up'));
+    document.getElementById('btnCompleted').addEventListener('click', () => {
+      // طلب تقييم قبل الإكمال
+      const rating = prompt('قيّم الزبون من 1 إلى 5:');
+      if (rating && !isNaN(rating)) {
+        updateRide('completed', parseFloat(rating));
+      }
+    });
+    document.getElementById('btnCancelled').addEventListener('click', () => updateRide('cancelled'));
+
+    startSendingLocation();
+    loadRequests();
+    setInterval(loadRequests, 10000);
+  });
+
+  // إيقاف التتبع عند الخروج
+  window.addEventListener('beforeunload', stopSendingLocation);
+
+  async function toggleStatus() {
+    const online = document.getElementById('onlineToggle').checked;
+    document.getElementById('statusLabel').textContent = online ? 'متاح' : 'غير متاح';
+    if (!currentDriverId) return;
+    try {
+      await fetch('/api/driver-status', {
+        method: 'POST', headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({ driver_id: currentDriverId, online })
+      });
+    } catch(e) {}
+  }
+
+  async function loadRequests() {
+    try {
+      const res = await fetch('/api/rides?action=list', { method: 'POST' });
+      const result = await res.json();
+      const list = document.getElementById('requestsList');
+      list.innerHTML = '';
+      document.getElementById('requestsCount').textContent = result.data?.length || 0;
+      if (!result.data?.length) {
+        list.innerHTML = '<div class="list-item" style="justify-content:center;color:var(--text-light)">لا توجد طلبات جديدة</div>';
+        return;
+      }
+      result.data.forEach(ride => {
+        const div = document.createElement('div');
+        div.className = 'list-item';
+        div.innerHTML = `
+          <div class="info"><strong>${ride.pickup_address} → ${ride.dropoff_address}</strong>
+          <small>${ride.users?.full_name || 'Unknown'} · ${ride.price} ر.س</small></div>
+          <div class="actions"><button class="btn-success accept-btn" data-id="${ride.id}">قبول</button>
+          <button class="btn-danger reject-btn" data-id="${ride.id}">رفض</button></div>`;
+        list.appendChild(div);
+      });
+      list.querySelectorAll('.accept-btn').forEach(b => b.onclick = () => acceptRide(b.dataset.id));
+      list.querySelectorAll('.reject-btn').forEach(b => b.onclick = () => loadRequests());
+    } catch(e) {}
+  }
+
+  async function acceptRide(rideId) {
+    const res = await fetch('/api/rides?action=update', {
+      method: 'POST', headers: { 'Content-Type': 'application/json' },
+      body: JSON.stringify({ id: rideId, status: 'accepted', driver_id: currentDriverId })
+    });
+    const result = await res.json();
+    if (result.data) {
+      activeRide = result.data;
+      document.getElementById('requestsCard').classList.add('hidden');
+      document.getElementById('currentRide').classList.remove('hidden');
+      document.getElementById('rideDetails').innerHTML = `
+        <p><strong>من:</strong> ${result.data.pickup_address}</p>
+        <p><strong>إلى:</strong> ${result.data.dropoff_address}</p>
+        <p><strong>السعر:</strong> ${result.data.price} ر.س</p>`;
+    }
+  }
+
+  async function updateRide(status, rating) {
+    if (!activeRide) return;
+    const body = { id: activeRide.id, status };
+    if (rating) body.rating = rating;
+    const res = await fetch('/api/rides?action=update', {
+      method: 'POST', headers: { 'Content-Type': 'application/json' },
+      body: JSON.stringify(body)
+    });
+    const result = await res.json();
+    if (result.data) {
+      if (status === 'completed' || status === 'cancelled') {
+        document.getElementById('currentRide').classList.add('hidden');
+        document.getElementById('requestsCard').classList.remove('hidden');
+        activeRide = null;
+        loadRequests();
+      }
+    }
+  }
 })();
