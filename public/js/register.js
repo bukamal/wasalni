@@ -23,8 +23,8 @@
       return;
     }
 
-    // تسجيل الدخول أو التأكد من إنشاء المستخدم
-    let currentUserId;
+    // تسجيل الدخول / إنشاء المستخدم أولاً
+    let currentUserId = null;
     try {
       const res = await fetch('/api/auth', {
         method: 'POST', headers: { 'Content-Type': 'application/json' },
@@ -32,12 +32,22 @@
           telegram_id: user.id,
           chat_id: user.id,
           full_name: user.first_name + ' ' + (user.last_name || ''),
-          role: 'customer' // مؤقتاً
+          role: 'customer' // مؤقت
         })
       });
       const result = await res.json();
-      if (result.user) currentUserId = result.user.id;
-    } catch(e) {}
+      if (result.user) {
+        currentUserId = result.user.id;
+        // تخزين user_id لاستخدامه لاحقًا
+        localStorage.setItem('wasalni_user_id', currentUserId);
+      } else {
+        tg?.showAlert('فشل في إنشاء الحساب');
+        return;
+      }
+    } catch(e) {
+      tg?.showAlert('خطأ في الاتصال');
+      return;
+    }
 
     document.getElementById('submitBtn').addEventListener('click', async () => {
       if (!currentUserId) return;
@@ -45,7 +55,7 @@
       const phone = role === 'customer' ? document.getElementById('phone').value : document.getElementById('phoneDriver').value;
       if (!phone) { tg?.showAlert('يرجى إدخال رقم الهاتف'); return; }
 
-      // تحديث رقم الهاتف في جدول users
+      // تحديث رقم الهاتف
       try {
         await fetch('/api/auth', {
           method: 'POST', headers: { 'Content-Type': 'application/json' },
@@ -81,13 +91,17 @@
         const joinData = await joinRes.json();
         if (joinData.request) {
           localStorage.setItem('wasalni_role', role);
-          localStorage.setItem('wasalni_user_id', currentUserId); // تخزين للاستخدام في pending
-          window.location.href = 'pending.html';
+          tg?.showAlert('✅ تم إرسال طلب الانضمام');
+          // انتظر قليلاً ثم انتقل
+          setTimeout(() => {
+            window.location.href = 'pending.html';
+          }, 1000);
         } else {
-          tg?.showAlert('حدث خطأ في إرسال الطلب');
+          const errMsg = joinData.error || 'حدث خطأ غير معروف';
+          tg?.showAlert('❌ ' + errMsg);
         }
       } catch(e) {
-        tg?.showAlert('خطأ في الاتصال');
+        tg?.showAlert('❌ فشل الاتصال بالخادم');
       }
     });
   });
