@@ -25,7 +25,7 @@
       document.getElementById('driverFields').classList.remove('hidden');
     }
 
-    // تسجيل الدخول / الحصول على user_id
+    // الحصول على user_id
     let currentUserId = localStorage.getItem('wasalni_user_id');
     if (!currentUserId) {
       try {
@@ -51,7 +51,7 @@
       return;
     }
 
-    // التحقق من حالة الطلب قبل السماح بالتسجيل
+    // التحقق من حالة الطلب السابقة
     try {
       const res = await fetch('/api/join-request?action=status', {
         method: 'POST', headers: { 'Content-Type': 'application/json' },
@@ -61,30 +61,24 @@
       const req = data.request;
       if (req) {
         if (req.status === 'approved') {
-          // تمت الموافقة بالفعل، انتقل مباشرة
           localStorage.setItem('wasalni_role', req.requested_role);
           window.location.href = req.requested_role === 'driver' ? 'driver.html' : 'customer.html';
           return;
-        } else if (req.status === 'rejected') {
-          // مسح الطلب المرفوض للسماح بطلب جديد (يمكن التقديم)
-          // نستمر في الصفحة الحالية
         } else if (req.status === 'pending') {
-          // الطلب قيد الانتظار، لا داعي لإعادة التسجيل
           tg?.showAlert('لديك طلب قيد المراجعة بالفعل');
-          setTimeout(() => {
-            window.location.href = 'pending.html';
-          }, 1500);
+          setTimeout(() => { window.location.href = 'pending.html'; }, 1500);
           return;
         }
+        // إذا كان rejected، نسمح بإعادة التقديم
       }
     } catch(e) {}
 
-    // منطق تقديم الطلب (كما في السابق)
     document.getElementById('submitBtn').addEventListener('click', async () => {
+      const gender = document.getElementById('gender').value;
       const phone = role === 'customer' ? document.getElementById('phone').value : document.getElementById('phoneDriver').value;
       if (!phone) { tg?.showAlert('يرجى إدخال رقم الهاتف'); return; }
 
-      // تحديث بيانات المستخدم
+      // تحديث بيانات المستخدم (رقم الهاتف والجنس)
       try {
         await fetch('/api/auth', {
           method: 'POST', headers: { 'Content-Type': 'application/json' },
@@ -93,6 +87,7 @@
             chat_id: user.id,
             full_name: user.first_name + ' ' + (user.last_name || ''),
             phone: phone,
+            gender: gender,
             role: 'customer'
           })
         });
@@ -120,9 +115,7 @@
         if (joinData.request) {
           localStorage.setItem('wasalni_role', role);
           tg?.showAlert('✅ تم إرسال طلب الانضمام');
-          setTimeout(() => {
-            window.location.href = 'pending.html';
-          }, 1000);
+          setTimeout(() => { window.location.href = 'pending.html'; }, 1000);
         } else {
           tg?.showAlert('❌ ' + (joinData.error || 'حدث خطأ'));
         }
