@@ -46,7 +46,6 @@ export default async function handler(req, res) {
 
     // ---- طلبات الانضمام ----
     if (action === 'list_join_requests') {
-      // جلب الطلبات مع المستخدمين
       const { data: requests, error: reqError } = await supabase
         .from('join_requests')
         .select('*, users!join_requests_user_id_fkey(*)')
@@ -54,7 +53,6 @@ export default async function handler(req, res) {
 
       if (reqError) return res.status(400).json({ error: reqError.message });
 
-      // جلب بيانات السائقين
       const driverUserIds = requests.filter(r => r.requested_role === 'driver').map(r => r.user_id);
       let driversData = [];
       if (driverUserIds.length > 0) {
@@ -78,12 +76,22 @@ export default async function handler(req, res) {
       if (!request_id || !status) return res.status(400).json({ error: 'request_id and status required' });
       if (status !== 'approved' && status !== 'rejected') return res.status(400).json({ error: 'Invalid status' });
 
+      // جلب الطلب
       const { data: joinReq, error: fetchError } = await supabase
         .from('join_requests')
         .select('*, users!join_requests_user_id_fkey(telegram_id, chat_id)')
         .eq('id', request_id)
         .single();
       if (fetchError || !joinReq) return res.status(404).json({ error: 'Request not found' });
+
+      // جلب UUID الأدمن
+      const { data: adminUser, error: adminError } = await supabase
+        .from('users')
+        .select('id')
+        .eq('chat_id', chat_id)
+        .single();
+      if (adminError || !adminUser) return res.status(400).json({ error: 'Admin user not found' });
+      const adminUuid = adminUser.id;
 
       if (status === 'approved') {
         // تحديث دور المستخدم
@@ -93,9 +101,8 @@ export default async function handler(req, res) {
           .eq('id', joinReq.user_id);
         if (updateUserError) return res.status(400).json({ error: updateUserError.message });
 
-        // التأكد من وجود سجل driver دون مسح بياناته
+        // إنشاء سجل سائق إذا لزم دون مسح البيانات
         if (joinReq.requested_role === 'driver') {
-          // فقط إنشاء إذا لم يكن موجوداً، دون تغيير البيانات
           const { data: existingDriver } = await supabase
             .from('drivers')
             .select('id')
@@ -107,10 +114,10 @@ export default async function handler(req, res) {
         }
       }
 
-      // تحديث حالة الطلب
+      // تحديث حالة الطلب باستخدام adminUuid
       const { data, error } = await supabase
         .from('join_requests')
-        .update({ status, updated_at: new Date().toISOString(), admin_id: chat_id })
+        .update({ status, updated_at: new Date().toISOString(), admin_id: adminUuid })
         .eq('id', request_id)
         .select()
         .single();
