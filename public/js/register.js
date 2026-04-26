@@ -25,29 +25,29 @@
       document.getElementById('driverFields').classList.remove('hidden');
     }
 
-    // الحصول على user_id
-    let currentUserId = localStorage.getItem('wasalni_user_id');
-    if (!currentUserId) {
-      try {
-        const res = await fetch('/api/auth', {
-          method: 'POST', headers: { 'Content-Type': 'application/json' },
-          body: JSON.stringify({
-            telegram_id: user.id,
-            chat_id: user.id,
-            full_name: user.first_name + ' ' + (user.last_name || ''),
-            role: 'customer'
-          })
-        });
-        const result = await res.json();
-        if (result.user) {
-          currentUserId = result.user.id;
-          localStorage.setItem('wasalni_user_id', currentUserId);
-        }
-      } catch(e) {}
-    }
-
-    if (!currentUserId) {
-      tg?.showAlert('فشل في التحقق من الحساب');
+    // الحصول على userId نظيف من auth
+    let currentUserId = null;
+    try {
+      const res = await fetch('/api/auth', {
+        method: 'POST', headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({
+          telegram_id: user.id,
+          chat_id: user.id,
+          full_name: user.first_name + ' ' + (user.last_name || ''),
+          role: 'customer'
+        })
+      });
+      const result = await res.json();
+      if (result.user && result.user.id) {
+        currentUserId = result.user.id;
+        // خزّنه بشكل صحيح
+        AppState.userId = currentUserId;
+      } else {
+        tg?.showAlert('فشل في إنشاء الحساب');
+        return;
+      }
+    } catch(e) {
+      tg?.showAlert('خطأ في الاتصال');
       return;
     }
 
@@ -61,7 +61,7 @@
       const req = data.request;
       if (req) {
         if (req.status === 'approved') {
-          localStorage.setItem('wasalni_role', req.requested_role);
+          AppState.role = req.requested_role;
           window.location.href = req.requested_role === 'driver' ? 'driver.html' : 'customer.html';
           return;
         } else if (req.status === 'pending') {
@@ -69,7 +69,6 @@
           setTimeout(() => { window.location.href = 'pending.html'; }, 1500);
           return;
         }
-        // إذا كان rejected، نسمح بإعادة التقديم
       }
     } catch(e) {}
 
@@ -78,7 +77,7 @@
       const phone = role === 'customer' ? document.getElementById('phone').value : document.getElementById('phoneDriver').value;
       if (!phone) { tg?.showAlert('يرجى إدخال رقم الهاتف'); return; }
 
-      // تحديث بيانات المستخدم (رقم الهاتف والجنس)
+      // تحديث بيانات المستخدم
       try {
         await fetch('/api/auth', {
           method: 'POST', headers: { 'Content-Type': 'application/json' },
@@ -113,7 +112,7 @@
         });
         const joinData = await joinRes.json();
         if (joinData.request) {
-          localStorage.setItem('wasalni_role', role);
+          AppState.role = role;
           tg?.showAlert('✅ تم إرسال طلب الانضمام');
           setTimeout(() => { window.location.href = 'pending.html'; }, 1000);
         } else {
