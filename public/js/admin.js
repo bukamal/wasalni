@@ -28,7 +28,7 @@
     if (!user) return;
 
     try {
-      const res = await fetch('/api/admin-check', {
+      const res = await fetch('/api/admin?action=check_admin', {
         method: 'POST', headers: { 'Content-Type': 'application/json' },
         body: JSON.stringify({ chat_id: user.id })
       });
@@ -44,15 +44,10 @@
     document.getElementById('tabAccepted').addEventListener('click', (e) => filterRides('accepted', e.target));
     document.getElementById('tabCompleted').addEventListener('click', (e) => filterRides('completed', e.target));
 
-    await loadStats();
-    await loadJoinRequests();
-    await loadRides();
-
-    setInterval(() => {
-      loadStats();
-      loadJoinRequests();
-      loadRides();
-    }, 10000);
+    loadStats();
+    loadRides();
+    loadJoinRequests();
+    setInterval(() => { loadStats(); loadRides(); loadJoinRequests(); }, 10000);
   });
 
   async function loadStats() {
@@ -78,7 +73,6 @@
       const list = document.getElementById('joinRequestsList');
       list.innerHTML = '';
       document.getElementById('joinRequestsCount').textContent = data?.length || 0;
-
       if (!data || data.length === 0) {
         list.innerHTML = '<div class="list-item" style="justify-content:center;color:var(--text-light)">لا توجد طلبات انضمام</div>';
         return;
@@ -166,7 +160,6 @@
     }
   }
 
-  // دوال المشاوير ...
   async function loadRides() {
     try {
       const res = await fetch('/api/admin?action=all_rides', {

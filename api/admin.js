@@ -14,12 +14,20 @@ export default async function handler(req, res) {
   if (req.method !== 'POST') return res.status(405).json({ error: 'Method not allowed' });
 
   const { chat_id } = req.body;
+  const { action } = req.query;
 
   try {
+    // الإجراء الجديد: التحقق من الأدمن بدون صلاحيات
+    if (action === 'check_admin') {
+      if (!chat_id) return res.status(400).json({ error: 'chat_id required' });
+      const { data, error } = await supabase.rpc('is_admin', { p_chat_id: chat_id });
+      if (error) return res.status(500).json({ error: error.message });
+      return res.status(200).json({ isAdmin: !!data });
+    }
+
+    // باقي الإجراءات تتطلب صلاحية أدمن
     const { data: isAdmin } = await supabase.rpc('is_admin', { p_chat_id: chat_id });
     if (!isAdmin) return res.status(403).json({ error: 'Unauthorized' });
-
-    const { action } = req.query;
 
     if (action === 'stats') {
       const { data: rides } = await supabase.from('rides').select('status');
@@ -120,7 +128,6 @@ export default async function handler(req, res) {
       return res.status(200).json({ data });
     }
 
-    // ---- حذف مستخدم كامل ----
     if (action === 'delete_user') {
       const { user_id } = req.body;
       if (!user_id) return res.status(400).json({ error: 'user_id required' });
@@ -129,23 +136,15 @@ export default async function handler(req, res) {
       if (!userToDelete) return res.status(404).json({ error: 'User not found' });
       if (userToDelete.role === 'admin') return res.status(403).json({ error: 'Cannot delete admin' });
 
-      // حذف الرحلات المرتبطة
       await supabase.from('rides').delete().eq('customer_id', user_id);
       const { data: driverData } = await supabase.from('drivers').select('id').eq('user_id', user_id).maybeSingle();
       if (driverData) {
         await supabase.from('rides').delete().eq('driver_id', driverData.id);
       }
-
-      // حذف سجل السائق
       await supabase.from('drivers').delete().eq('user_id', user_id);
-
-      // حذف طلبات الانضمام
       await supabase.from('join_requests').delete().eq('user_id', user_id);
-
-      // حذف المستخدم
       const { error: deleteError } = await supabase.from('users').delete().eq('id', user_id);
       if (deleteError) return res.status(400).json({ error: deleteError.message });
-
       return res.status(200).json({ success: true });
     }
 

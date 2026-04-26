@@ -42,9 +42,9 @@
       }
     }
 
-    // Admin check
+    // Admin check باستخدام الإجراء الجديد
     try {
-      const adminRes = await fetch('/api/admin-check', {
+      const adminRes = await fetch('/api/admin?action=check_admin', {
         method: 'POST', headers: { 'Content-Type': 'application/json' },
         body: JSON.stringify({ chat_id: user.id })
       });
