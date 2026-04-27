@@ -5,6 +5,33 @@ const supabase = createClient(
   process.env.SUPABASE_SERVICE_ROLE_KEY
 );
 
+const BOT_TOKEN = process.env.BOT_TOKEN;
+
+async function sendTelegram(chatId, text, replyMarkup = null) {
+  if (!BOT_TOKEN || !chatId) return;
+  try {
+    const payload = { chat_id: chatId, text, parse_mode: 'HTML' };
+    if (replyMarkup) payload.reply_markup = replyMarkup;
+    await fetch(`https://api.telegram.org/bot${BOT_TOKEN}/sendMessage`, {
+      method: 'POST',
+      headers: { 'Content-Type': 'application/json' },
+      body: JSON.stringify(payload)
+    });
+  } catch (e) {
+    console.error('telegram send error:', e);
+  }
+}
+
+function ratingKeyboard(rideId, role) {
+  // role: 'customer' or 'driver'
+  return {
+    inline_keyboard: [[1,2,3,4,5].map(r => ({
+      text: `${r}⭐`,
+      callback_data: `rate_${role}_${rideId}_${r}`
+    }))]
+  };
+}
+
 export default async function handler(req, res) {
   res.setHeader('Access-Control-Allow-Origin', '*');
   res.setHeader('Access-Control-Allow-Headers', 'Content-Type');
@@ -31,13 +58,52 @@ export default async function handler(req, res) {
     }
 
     if (action === 'update') {
-      const { id, status, driver_id, rating, feedback } = req.body;
+      const { id, status, driver_id, rating, feedback, reason } = req.body;
       const update = { status, updated_at: new Date().toISOString() };
       if (driver_id) update.driver_id = driver_id;
       if (rating) update.rating = rating;
       if (feedback) update.feedback = feedback;
+
+      const { data: ride } = await supabase
+        .from('rides')
+        .select('*, customer:users!rides_customer_id_fkey(chat_id, full_name), driver:users!rides_driver_id_fkey(chat_id, full_name)')
+        .eq('id', id)
+        .single();
+
       const { data, error } = await supabase.from('rides').update(update).eq('id', id).select().single();
-      return res.status(error ? 400 : 200).json({ data, error: error?.message });
+
+      if (error) return res.status(400).json({ data, error: error?.message });
+
+      if (ride && data) {
+        if (status === 'accepted' && ride.customer) {
+          await sendTelegram(ride.customer.chat_id, `🚗 تم قبول مشوارك! السائق ${ride.driver?.full_name || ''} في الطريق إليك.`);
+        } else if (status === 'picked_up' && ride.customer) {
+          await sendTelegram(ride.customer.chat_id, `✅ السائق التقط الراكب، رحلة سعيدة!`);
+        } else if (status === 'completed') {
+          // إرسال أزرار تقييم للزبون
+          if (ride.customer) {
+            await sendTelegram(
+              ride.customer.chat_id,
+              `🏁 وصلت إلى وجهتك! كيف تقيم رحلتك؟`,
+              ratingKeyboard(id, 'customer')
+            );
+          }
+          // إرسال أزرار تقييم للسائق
+          if (ride.driver) {
+            await sendTelegram(
+              ride.driver.chat_id,
+              `🏁 تمت الرحلة. كيف تقيم الزبون؟`,
+              ratingKeyboard(id, 'driver')
+            );
+          }
+        } else if (status === 'cancelled') {
+          const cancelMsg = reason ? ` بسبب: ${reason}` : '';
+          if (ride.customer) await sendTelegram(ride.customer.chat_id, `❌ تم إلغاء المشوار${cancelMsg}.`);
+          if (ride.driver) await sendTelegram(ride.driver.chat_id, `❌ تم إلغاء المشوار${cancelMsg}.`);
+        }
+      }
+
+      return res.status(200).json({ data });
     }
 
     if (action === 'myrides') {
@@ -49,12 +115,10 @@ export default async function handler(req, res) {
       return res.status(error ? 400 : 200).json({ data, error: error?.message });
     }
 
-    // 🆕 تتبع السائق للرحلة النشطة
     if (action === 'track') {
       const { ride_id } = req.body;
       if (!ride_id) return res.status(400).json({ error: 'ride_id required' });
 
-      // جلب الرحلة مع السائق
       const { data: ride, error: rideError } = await supabase
         .from('rides')
         .select('id, status, drivers!rides_driver_id_fkey(current_lat, current_lng, user_id, car_model, car_plate, users!drivers_user_id_fkey(full_name, phone, gender))')

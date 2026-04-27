@@ -5,6 +5,21 @@ const supabase = createClient(
   process.env.SUPABASE_SERVICE_ROLE_KEY
 );
 
+const BOT_TOKEN = process.env.BOT_TOKEN;
+
+async function sendTelegram(chatId, text) {
+  if (!BOT_TOKEN || !chatId) return;
+  try {
+    await fetch(`https://api.telegram.org/bot${BOT_TOKEN}/sendMessage`, {
+      method: 'POST',
+      headers: { 'Content-Type': 'application/json' },
+      body: JSON.stringify({ chat_id: chatId, text })
+    });
+  } catch (e) {
+    console.error('telegram send error:', e);
+  }
+}
+
 export default async function handler(req, res) {
   res.setHeader('Access-Control-Allow-Origin', '*');
   res.setHeader('Access-Control-Allow-Headers', 'Content-Type');
@@ -16,14 +31,12 @@ export default async function handler(req, res) {
   if (!user_id) return res.status(400).json({ error: 'user_id required' });
 
   try {
-    // GET / POST
     if (req.method === 'POST') {
       const { data: user, error: userErr } = await supabase
         .from('users')
         .select('*')
         .eq('id', user_id)
         .single();
-
       if (userErr) return res.status(404).json({ error: userErr.message });
 
       const { data: driver } = await supabase
@@ -35,7 +48,6 @@ export default async function handler(req, res) {
       return res.status(200).json({ user, driver });
     }
 
-    // PUT
     if (req.method === 'PUT') {
       const { full_name, phone, gender, driver } = req.body;
 
@@ -43,9 +55,8 @@ export default async function handler(req, res) {
         .from('users')
         .update({ full_name, phone, gender })
         .eq('id', user_id)
-        .select()
+        .select('*')
         .single();
-
       if (userErr) return res.status(400).json({ error: userErr.message });
 
       if (driver) {
@@ -57,8 +68,12 @@ export default async function handler(req, res) {
             car_plate: driver.car_plate,
             vehicle_type: driver.vehicle_type
           }, { onConflict: 'user_id' });
-
         if (driverErr) return res.status(400).json({ error: driverErr.message });
+      }
+
+      // إشعار التأكيد
+      if (user.chat_id) {
+        await sendTelegram(user.chat_id, `✅ تم تحديث بيانات ملفك الشخصي بنجاح.`);
       }
 
       return res.status(200).json({ user });
