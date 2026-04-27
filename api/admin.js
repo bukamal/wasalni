@@ -5,6 +5,20 @@ const supabase = createClient(
   process.env.SUPABASE_SERVICE_ROLE_KEY
 );
 
+const BOT_TOKEN = process.env.BOT_TOKEN;
+
+async function sendTelegram(chatId, text) {
+  if (!BOT_TOKEN || !chatId) return;
+  try {
+    await fetch(`https://api.telegram.org/bot${BOT_TOKEN}/sendMessage`, {
+      method: 'POST', headers: { 'Content-Type': 'application/json' },
+      body: JSON.stringify({ chat_id: chatId, text })
+    });
+  } catch (e) {
+    console.error('telegram send error:', e);
+  }
+}
+
 export default async function handler(req, res) {
   res.setHeader('Access-Control-Allow-Origin', '*');
   res.setHeader('Access-Control-Allow-Headers', 'Content-Type');
@@ -17,7 +31,6 @@ export default async function handler(req, res) {
   const { action } = req.query;
 
   try {
-    // الإجراء الجديد: التحقق من الأدمن بدون صلاحيات
     if (action === 'check_admin') {
       if (!chat_id) return res.status(400).json({ error: 'chat_id required' });
       const { data, error } = await supabase.rpc('is_admin', { p_chat_id: chat_id });
@@ -25,7 +38,6 @@ export default async function handler(req, res) {
       return res.status(200).json({ isAdmin: !!data });
     }
 
-    // باقي الإجراءات تتطلب صلاحية أدمن
     const { data: isAdmin } = await supabase.rpc('is_admin', { p_chat_id: chat_id });
     if (!isAdmin) return res.status(403).json({ error: 'Unauthorized' });
 
@@ -52,10 +64,11 @@ export default async function handler(req, res) {
       return res.status(error ? 400 : 200).json({ data, error: error?.message });
     }
 
+    // ---- طلبات الانضمام (مُحسَّنة) ----
     if (action === 'list_join_requests') {
       const { data: requests, error: reqError } = await supabase
         .from('join_requests')
-        .select('*, users!join_requests_user_id_fkey(*)')
+        .select('*, users!join_requests_user_id_fkey(full_name, phone, gender, photo, role)')
         .order('created_at', { ascending: false });
 
       if (reqError) return res.status(400).json({ error: reqError.message });
@@ -65,7 +78,7 @@ export default async function handler(req, res) {
       if (driverUserIds.length > 0) {
         const { data: drivers } = await supabase
           .from('drivers')
-          .select('*')
+          .select('car_model, car_plate, license_photo, car_photo, vehicle_type, user_id')
           .in('user_id', driverUserIds);
         driversData = drivers || [];
       }
@@ -85,7 +98,7 @@ export default async function handler(req, res) {
 
       const { data: joinReq, error: fetchError } = await supabase
         .from('join_requests')
-        .select('*, users!join_requests_user_id_fkey(telegram_id, chat_id)')
+        .select('*, users!join_requests_user_id_fkey(telegram_id, chat_id, full_name)')
         .eq('id', request_id)
         .single();
       if (fetchError || !joinReq) return res.status(404).json({ error: 'Request not found' });
@@ -115,6 +128,15 @@ export default async function handler(req, res) {
             await supabase.from('drivers').insert({ user_id: joinReq.user_id });
           }
         }
+        await sendTelegram(
+          joinReq.users.chat_id,
+          `🎉 تم قبول طلب انضمامك كـ ${joinReq.requested_role === 'driver' ? '🚗 سائق' : '👤 زبون'} في وصلني!\nيمكنك الآن استخدام التطبيق.`
+        );
+      } else {
+        await sendTelegram(
+          joinReq.users.chat_id,
+          `❌ عذراً، تم رفض طلب انضمامك.\nيمكنك التواصل مع الإدارة لمعرفة السبب.`
+        );
       }
 
       const { data, error } = await supabase
@@ -132,7 +154,7 @@ export default async function handler(req, res) {
       const { user_id } = req.body;
       if (!user_id) return res.status(400).json({ error: 'user_id required' });
 
-      const { data: userToDelete } = await supabase.from('users').select('role').eq('id', user_id).single();
+      const { data: userToDelete } = await supabase.from('users').select('role, chat_id, full_name').eq('id', user_id).single();
       if (!userToDelete) return res.status(404).json({ error: 'User not found' });
       if (userToDelete.role === 'admin') return res.status(403).json({ error: 'Cannot delete admin' });
 
@@ -145,6 +167,8 @@ export default async function handler(req, res) {
       await supabase.from('join_requests').delete().eq('user_id', user_id);
       const { error: deleteError } = await supabase.from('users').delete().eq('id', user_id);
       if (deleteError) return res.status(400).json({ error: deleteError.message });
+
+      await sendTelegram(userToDelete.chat_id, `⚠️ تم حذف حسابك من قبل الإدارة.`);
       return res.status(200).json({ success: true });
     }
 

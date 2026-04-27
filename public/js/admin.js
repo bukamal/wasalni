@@ -64,7 +64,7 @@
     } catch (e) {}
   }
 
-  // ---------- طلبات الانضمام (مع صور) ----------
+  // ---------- طلبات الانضمام (تفاصيل كاملة) ----------
   async function loadJoinRequests() {
     try {
       const res = await fetch('/api/admin?action=list_join_requests', {
@@ -85,6 +85,7 @@
         const isDriver = req.requested_role === 'driver';
         const driver = req.driver_details;
 
+        // بناء الصور
         let photosHtml = renderPhoto(user?.photo, 50);
         if (isDriver && driver) {
           photosHtml += renderPhoto(driver.license_photo, 50);
@@ -100,8 +101,18 @@
               <span class="badge badge-${req.status}">${getJoinStatusText(req.status)}</span>
             </div>
             <small>📞 ${user?.phone || 'لا يوجد'}</small>
-            ${isDriver && driver ? `<div style="margin-top:4px"><small>🚘 ${driver.car_model || ''} - ${driver.car_plate || ''}</small></div>` : ''}
-            <div style="display:flex; align-items:center; gap:4px; margin-top:6px;">${photosHtml}</div>
+            <small>👤 ${user?.gender === 'male' ? 'ذكر' : user?.gender === 'female' ? 'أنثى' : 'غير محدد'}</small>
+            ${isDriver && driver ? `
+              <div style="margin-top:6px">
+                <small>🚘 ${driver.car_model || ''} - ${driver.car_plate || ''}</small>
+                <small>🏷️ ${driver.vehicle_type === 'van' ? 'فان' : driver.vehicle_type === 'motorcycle' ? 'دراجة' : 'سيارة'}</small>
+                <div style="display:flex; gap:4px; margin-top:4px;">
+                  ${renderPhoto(driver.license_photo, 70)}
+                  ${renderPhoto(driver.car_photo, 70)}
+                </div>
+              </div>
+            ` : ''}
+            <div style="margin-top:4px;">${photosHtml}</div>
           </div>
           <div class="actions" style="margin-top:8px; display:flex; gap:8px;">
             ${req.status === 'pending' ? `
