@@ -15,6 +15,7 @@
     </header>
 
     <div class="card" id="registerCard">
+      <!-- الجنس -->
       <div class="input-group">
         <label>👤 الجنس</label>
         <select id="gender">
@@ -23,6 +24,14 @@
         </select>
       </div>
 
+      <!-- الصورة الشخصية (للجميع) -->
+      <div class="input-group">
+        <label>📷 الصورة الشخصية</label>
+        <input type="file" id="personalPhoto" accept="image/*" capture="user">
+        <img id="personalPhotoPreview" class="photo-preview hidden" />
+      </div>
+
+      <!-- حقول الزبون -->
       <div id="customerFields" class="hidden">
         <div class="input-group">
           <label>📞 رقم الهاتف</label>
@@ -30,6 +39,7 @@
         </div>
       </div>
 
+      <!-- حقول السائق -->
       <div id="driverFields" class="hidden">
         <div class="input-group">
           <label>🚗 موديل السيارة</label>
@@ -42,6 +52,16 @@
         <div class="input-group">
           <label>📞 رقم الهاتف</label>
           <input type="tel" id="phoneDriver" placeholder="05xxxxxxxx">
+        </div>
+        <div class="input-group">
+          <label>🪪 صورة الرخصة</label>
+          <input type="file" id="licensePhoto" accept="image/*">
+          <img id="licensePhotoPreview" class="photo-preview hidden" />
+        </div>
+        <div class="input-group">
+          <label>🚘 صورة المركبة</label>
+          <input type="file" id="carPhoto" accept="image/*">
+          <img id="carPhotoPreview" class="photo-preview hidden" />
         </div>
       </div>
 

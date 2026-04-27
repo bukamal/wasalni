@@ -1,9 +1,6 @@
 (function() {
   const tg = window.Telegram.WebApp;
-  if (tg) {
-    tg.expand();
-    tg.ready();
-  }
+  if (tg) { tg.expand(); tg.ready(); }
 
   let currentFilter = 'all';
 
@@ -15,6 +12,11 @@
   function getRideStatusText(status) {
     const map = { 'pending': 'معلق', 'accepted': 'مقبول', 'picked_up': 'التقط الراكب', 'completed': 'مكتمل', 'cancelled': 'ملغي' };
     return map[status] || status;
+  }
+
+  function renderPhoto(base64, width = 60) {
+    if (!base64) return '';
+    return `<img src="${base64}" style="width:${width}px; height:${width}px; object-fit:cover; border-radius:8px; margin:4px;" />`;
   }
 
   document.getElementById('backBtn').addEventListener('click', () => window.location.href = 'login.html');
@@ -44,12 +46,11 @@
     document.getElementById('tabAccepted').addEventListener('click', (e) => filterRides('accepted', e.target));
     document.getElementById('tabCompleted').addEventListener('click', (e) => filterRides('completed', e.target));
 
-    loadStats();
-    loadRides();
-    loadJoinRequests();
+    loadStats(); loadRides(); loadJoinRequests();
     setInterval(() => { loadStats(); loadRides(); loadJoinRequests(); }, 10000);
   });
 
+  // ---------- إحصائيات ----------
   async function loadStats() {
     try {
       const res = await fetch('/api/admin?action=stats', {
@@ -63,6 +64,7 @@
     } catch (e) {}
   }
 
+  // ---------- طلبات الانضمام (مع صور) ----------
   async function loadJoinRequests() {
     try {
       const res = await fetch('/api/admin?action=list_join_requests', {
@@ -83,6 +85,12 @@
         const isDriver = req.requested_role === 'driver';
         const driver = req.driver_details;
 
+        let photosHtml = renderPhoto(user?.photo, 50);
+        if (isDriver && driver) {
+          photosHtml += renderPhoto(driver.license_photo, 50);
+          photosHtml += renderPhoto(driver.car_photo, 50);
+        }
+
         const div = document.createElement('div');
         div.className = 'list-item';
         div.innerHTML = `
@@ -92,7 +100,8 @@
               <span class="badge badge-${req.status}">${getJoinStatusText(req.status)}</span>
             </div>
             <small>📞 ${user?.phone || 'لا يوجد'}</small>
-            ${isDriver && driver ? `<div style="margin-top:6px"><small>🚘 ${driver.car_model || 'غير محدد'}</small><br><small>🔢 ${driver.car_plate || 'غير محدد'}</small></div>` : ''}
+            ${isDriver && driver ? `<div style="margin-top:4px"><small>🚘 ${driver.car_model || ''} - ${driver.car_plate || ''}</small></div>` : ''}
+            <div style="display:flex; align-items:center; gap:4px; margin-top:6px;">${photosHtml}</div>
           </div>
           <div class="actions" style="margin-top:8px; display:flex; gap:8px;">
             ${req.status === 'pending' ? `
@@ -105,18 +114,10 @@
         list.appendChild(div);
       });
 
-      list.querySelectorAll('.approve-btn').forEach(btn => {
-        btn.onclick = () => handleJoinRequest(btn.dataset.id, 'approved');
-      });
-      list.querySelectorAll('.reject-btn').forEach(btn => {
-        btn.onclick = () => handleJoinRequest(btn.dataset.id, 'rejected');
-      });
-      list.querySelectorAll('.delete-user-btn').forEach(btn => {
-        btn.onclick = () => {
-          if (confirm('هل أنت متأكد من حذف هذا المستخدم وكل بياناته؟')) {
-            deleteUser(btn.dataset.userid);
-          }
-        };
+      list.querySelectorAll('.approve-btn').forEach(btn => btn.onclick = () => handleJoinRequest(btn.dataset.id, 'approved'));
+      list.querySelectorAll('.reject-btn').forEach(btn => btn.onclick = () => handleJoinRequest(btn.dataset.id, 'rejected'));
+      list.querySelectorAll('.delete-user-btn').forEach(btn => btn.onclick = () => {
+        if (confirm('هل أنت متأكد من حذف هذا المستخدم وكل بياناته؟')) deleteUser(btn.dataset.userid);
       });
 
     } catch (e) {}
@@ -130,15 +131,9 @@
       });
       if (res.ok) {
         tg?.showAlert(status === 'approved' ? '✅ تم قبول الطلب' : '❌ تم رفض الطلب');
-        loadJoinRequests();
-        loadStats();
-      } else {
-        const err = await res.json();
-        tg?.showAlert('خطأ: ' + (err.error || 'فشل'));
+        loadJoinRequests(); loadStats();
       }
-    } catch (e) {
-      tg?.showAlert('حدث خطأ');
-    }
+    } catch (e) {}
   }
 
   async function deleteUser(userId) {
@@ -148,18 +143,13 @@
         body: JSON.stringify({ chat_id: tg.initDataUnsafe.user.id, user_id: userId })
       });
       if (res.ok) {
-        tg?.showAlert('✅ تم حذف المستخدم وكل بياناته');
-        loadJoinRequests();
-        loadStats();
-      } else {
-        const err = await res.json();
-        tg?.showAlert('❌ ' + (err.error || 'فشل الحذف'));
+        tg?.showAlert('✅ تم حذف المستخدم');
+        loadJoinRequests(); loadStats();
       }
-    } catch(e) {
-      tg?.showAlert('❌ خطأ في الاتصال');
-    }
+    } catch (e) {}
   }
 
+  // ---------- إدارة المشاوير ----------
   async function loadRides() {
     try {
       const res = await fetch('/api/admin?action=all_rides', {
@@ -171,9 +161,7 @@
       list.innerHTML = '';
 
       let filtered = data || [];
-      if (currentFilter !== 'all') {
-        filtered = filtered.filter(r => r.status === currentFilter);
-      }
+      if (currentFilter !== 'all') filtered = filtered.filter(r => r.status === currentFilter);
 
       if (filtered.length === 0) {
         list.innerHTML = '<div class="list-item" style="justify-content:center;color:var(--text-light)">لا توجد طلبات</div>';
@@ -203,9 +191,7 @@
         list.appendChild(div);
       });
 
-      list.querySelectorAll('.manage-btn').forEach(btn => {
-        btn.onclick = () => manageRide(btn.dataset.id, btn.dataset.status);
-      });
+      list.querySelectorAll('.manage-btn').forEach(btn => btn.onclick = () => manageRide(btn.dataset.id, btn.dataset.status));
 
     } catch (e) {}
   }
@@ -225,8 +211,7 @@
       });
       if (res.ok) {
         tg?.showAlert('✅ تم تحديث الحالة');
-        loadStats();
-        loadRides();
+        loadStats(); loadRides();
       }
     } catch (e) {}
   }

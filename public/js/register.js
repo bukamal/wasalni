@@ -5,6 +5,29 @@
   const urlParams = new URLSearchParams(window.location.search);
   const role = urlParams.get('role');
 
+  // تحويل ملف إلى Base64 مع تنسيق data URI
+  function fileToBase64(file) {
+    return new Promise((resolve, reject) => {
+      if (!file) return resolve(null);
+      const reader = new FileReader();
+      reader.onload = () => resolve(reader.result);
+      reader.onerror = reject;
+      reader.readAsDataURL(file);
+    });
+  }
+
+  // عرض معاينة الصورة
+  function showPreview(inputElement, imgElement) {
+    if (inputElement.files && inputElement.files[0]) {
+      const reader = new FileReader();
+      reader.onload = (e) => {
+        imgElement.src = e.target.result;
+        imgElement.classList.remove('hidden');
+      };
+      reader.readAsDataURL(inputElement.files[0]);
+    }
+  }
+
   document.addEventListener('DOMContentLoaded', async () => {
     const user = tg?.initDataUnsafe?.user;
     if (!user) {
@@ -25,7 +48,20 @@
       document.getElementById('driverFields').classList.remove('hidden');
     }
 
-    // الحصول على userId نظيف من auth
+    // معاينات الصور
+    document.getElementById('personalPhoto').addEventListener('change', function() {
+      showPreview(this, document.getElementById('personalPhotoPreview'));
+    });
+    if (role === 'driver') {
+      document.getElementById('licensePhoto').addEventListener('change', function() {
+        showPreview(this, document.getElementById('licensePhotoPreview'));
+      });
+      document.getElementById('carPhoto').addEventListener('change', function() {
+        showPreview(this, document.getElementById('carPhotoPreview'));
+      });
+    }
+
+    // الحصول على userId
     let currentUserId = null;
     try {
       const res = await fetch('/api/auth', {
@@ -40,7 +76,6 @@
       const result = await res.json();
       if (result.user && result.user.id) {
         currentUserId = result.user.id;
-        // خزّنه بشكل صحيح
         AppState.userId = currentUserId;
       } else {
         tg?.showAlert('فشل في إنشاء الحساب');
@@ -51,7 +86,7 @@
       return;
     }
 
-    // التحقق من حالة الطلب السابقة
+    // تحقق من حالة سابقة
     try {
       const res = await fetch('/api/join-request?action=status', {
         method: 'POST', headers: { 'Content-Type': 'application/json' },
@@ -65,19 +100,22 @@
           window.location.href = req.requested_role === 'driver' ? 'driver.html' : 'customer.html';
           return;
         } else if (req.status === 'pending') {
-          tg?.showAlert('لديك طلب قيد المراجعة بالفعل');
+          tg?.showAlert('لديك طلب قيد المراجعة');
           setTimeout(() => { window.location.href = 'pending.html'; }, 1500);
           return;
         }
       }
     } catch(e) {}
 
+    // إرسال الطلب
     document.getElementById('submitBtn').addEventListener('click', async () => {
-      const gender = document.getElementById('gender').value;
       const phone = role === 'customer' ? document.getElementById('phone').value : document.getElementById('phoneDriver').value;
       if (!phone) { tg?.showAlert('يرجى إدخال رقم الهاتف'); return; }
 
-      // تحديث بيانات المستخدم
+      const personalPhotoFile = document.getElementById('personalPhoto').files[0];
+      const personalPhotoBase64 = await fileToBase64(personalPhotoFile);
+
+      // تحديث بيانات المستخدم (بما فيها الصورة)
       try {
         await fetch('/api/auth', {
           method: 'POST', headers: { 'Content-Type': 'application/json' },
@@ -86,7 +124,8 @@
             chat_id: user.id,
             full_name: user.first_name + ' ' + (user.last_name || ''),
             phone: phone,
-            gender: gender,
+            gender: document.getElementById('gender').value,
+            photo: personalPhotoBase64,
             role: 'customer'
           })
         });
@@ -96,10 +135,24 @@
         const carModel = document.getElementById('carModel').value;
         const carPlate = document.getElementById('carPlate').value;
         if (!carModel || !carPlate) { tg?.showAlert('يرجى إدخال بيانات السيارة'); return; }
+
+        const licenseFile = document.getElementById('licensePhoto').files[0];
+        const carFile = document.getElementById('carPhoto').files[0];
+        const [licenseBase64, carBase64] = await Promise.all([
+          fileToBase64(licenseFile),
+          fileToBase64(carFile)
+        ]);
+
         try {
           await fetch('/api/driver-register', {
             method: 'POST', headers: { 'Content-Type': 'application/json' },
-            body: JSON.stringify({ user_id: currentUserId, car_model: carModel, car_plate: carPlate })
+            body: JSON.stringify({
+              user_id: currentUserId,
+              car_model: carModel,
+              car_plate: carPlate,
+              license_photo: licenseBase64,
+              car_photo: carBase64
+            })
           });
         } catch(e) {}
       }

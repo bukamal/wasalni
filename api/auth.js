@@ -13,7 +13,7 @@ export default async function handler(req, res) {
   if (req.method === 'OPTIONS') return res.status(200).end();
   if (req.method !== 'POST') return res.status(405).json({ error: 'Method not allowed' });
 
-  const { telegram_id, chat_id, full_name, phone, role, gender } = req.body;
+  const { telegram_id, chat_id, full_name, phone, role, gender, photo } = req.body;
 
   let finalRole = role || 'customer';
   if (role === 'admin') {
@@ -23,9 +23,8 @@ export default async function handler(req, res) {
 
   try {
     const updateData = { telegram_id, chat_id, full_name, phone, role: finalRole };
-    if (gender) {
-      updateData.gender = gender;
-    }
+    if (gender) updateData.gender = gender;
+    if (photo) updateData.photo = photo;
 
     const { data: user, error } = await supabase
       .from('users')

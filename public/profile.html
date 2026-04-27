@@ -17,62 +17,30 @@
 
     <div class="card">
       <div class="profile-header">
-        <div class="profile-avatar" id="profileAvatar">👤</div>
+        <img id="profileAvatar" class="profile-avatar-img" src="" alt="👤" style="width:80px;height:80px;border-radius:50%;object-fit:cover;" />
         <h3 id="displayName">...</h3>
         <span id="roleBadge" class="badge badge-accepted">زبون</span>
       </div>
-
-      <div class="stats-mini" id="statsMini">
-        <div class="stat-item">
-          <span class="stat-num" id="totalRidesCount">0</span>
-          <small>مشاوير</small>
-        </div>
-        <div class="stat-item">
-          <span class="stat-num" id="userRating">5.0</span>
-          <small>التقييم</small>
-        </div>
+      <div class="stats-mini">
+        <div class="stat-item"><span class="stat-num" id="totalRidesCount">0</span><small>مشاوير</small></div>
+        <div class="stat-item"><span class="stat-num" id="userRating">5.0</span><small>التقييم</small></div>
       </div>
     </div>
 
     <div class="card">
       <div class="card-header"><h3>✏️ تعديل البيانات</h3></div>
-      <div class="input-group">
-        <label>الاسم الكامل</label>
-        <input type="text" id="fullName" placeholder="اسمك">
-      </div>
-      <div class="input-group">
-        <label>رقم الهاتف</label>
-        <input type="tel" id="phone" placeholder="05xxxxxxxx">
-      </div>
-      <div class="input-group">
-        <label>الجنس</label>
-        <select id="gender">
-          <option value="male">ذكر</option>
-          <option value="female">أنثى</option>
-        </select>
-      </div>
+      <div class="input-group"><label>الاسم الكامل</label><input type="text" id="fullName" placeholder="اسمك"></div>
+      <div class="input-group"><label>رقم الهاتف</label><input type="tel" id="phone" placeholder="05xxxxxxxx"></div>
+      <div class="input-group"><label>الجنس</label><select id="gender"><option value="male">ذكر</option><option value="female">أنثى</option></select></div>
+      <div class="input-group"><label>📷 الصورة الشخصية</label><input type="file" id="personalPhoto" accept="image/*"></div>
       <div id="driverExtra" class="hidden">
-        <div class="input-group">
-          <label>موديل السيارة</label>
-          <input type="text" id="carModel" placeholder="تويوتا كامري 2022">
-        </div>
-        <div class="input-group">
-          <label>رقم اللوحة</label>
-          <input type="text" id="carPlate" placeholder="أ ب ج 1234">
-        </div>
-        <div class="input-group">
-          <label>نوع المركبة</label>
-          <select id="vehicleType">
-            <option value="car">سيارة</option>
-            <option value="van">فان</option>
-            <option value="motorcycle">دراجة</option>
-          </select>
-        </div>
+        <div class="input-group"><label>موديل السيارة</label><input type="text" id="carModel"></div>
+        <div class="input-group"><label>رقم اللوحة</label><input type="text" id="carPlate"></div>
+        <div class="input-group"><label>نوع المركبة</label><select id="vehicleType"><option value="car">سيارة</option><option value="van">فان</option><option value="motorcycle">دراجة</option></select></div>
       </div>
       <button class="btn-primary" id="saveBtn">💾 حفظ التغييرات</button>
     </div>
   </div>
-
   <script src="https://cdn.jsdelivr.net/npm/@supabase/supabase-js@2"></script>
   <script src="js/state.js"></script>
   <script src="js/profile.js"></script>

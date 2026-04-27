@@ -740,6 +740,22 @@ input:focus, select:focus {
   font-size: 0.8rem;
 }
 
+/* ----- Photo Preview & Profile Avatar ----- */
+.photo-preview {
+  max-width: 100px;
+  max-height: 100px;
+  border-radius: 8px;
+  margin-top: 8px;
+  border: 1px solid #ddd;
+}
+.profile-avatar-img {
+  background: var(--bg);
+  width: 80px;
+  height: 80px;
+  border-radius: 50%;
+  object-fit: cover;
+}
+
 /* ----- Utilities ----- */
 .hidden {
   display: none !important;
