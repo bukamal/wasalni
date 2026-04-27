@@ -2,12 +2,10 @@
   const tg = window.Telegram.WebApp;
   if (tg) { tg.expand(); tg.ready(); }
 
-  // ---------- ضمان صلاحية السائق ----------
   async function ensureApproved(requiredRole) {
     const user = tg?.initDataUnsafe?.user;
     if (!user) { window.location.href = 'login.html'; return false; }
 
-    // جلب/إنشاء المستخدم الحقيقي من Telegram ID
     let userId;
     try {
       const authRes = await fetch('/api/auth', {
@@ -16,16 +14,15 @@
           telegram_id: user.id,
           chat_id: user.id,
           full_name: user.first_name + ' ' + (user.last_name || ''),
-          role: 'driver'   // مؤقت لكن سيُصحح لاحقًا
+          role: 'driver'
         })
       });
       const authData = await authRes.json();
       if (!authData.user) { window.location.href = 'login.html'; return false; }
       userId = authData.user.id;
-      AppState.userId = userId;   // نخزّن الصحيح
+      localStorage.setItem('wasalni_user_id', userId);
     } catch (e) { window.location.href = 'login.html'; return false; }
 
-    // التحقق من وجود طلب موافقة
     try {
       const res = await fetch('/api/join-request?action=status', {
         method: 'POST', headers: { 'Content-Type': 'application/json' },
@@ -34,11 +31,11 @@
       const result = await res.json();
       const req = result.request;
       if (req && req.status === 'approved' && req.requested_role === requiredRole) {
-        AppState.role = requiredRole;
+        localStorage.setItem('wasalni_role', requiredRole);
         return userId;
       }
-      // غير مصرح أو قيد الانتظار
-      AppState.role = requiredRole;
+      // إذا لم يجد الطلب المناسب
+      localStorage.setItem('wasalni_role', requiredRole);
       window.location.href = 'pending.html';
       return false;
     } catch (e) {
@@ -54,7 +51,6 @@
   let activeRide = null;
   let locationInterval = null;
 
-  // ---------- إرسال الموقع دورياً ----------
   function startSendingLocation() {
     if (!navigator.geolocation) return;
     locationInterval = setInterval(() => {
@@ -76,7 +72,6 @@
     if (locationInterval) clearInterval(locationInterval);
   }
 
-  // ---------- التهيئة ----------
   document.addEventListener('DOMContentLoaded', async () => {
     currentDriverId = await ensureApproved('driver');
     if (!currentDriverId) return;
@@ -88,9 +83,7 @@
     document.getElementById('btnPickedUp').addEventListener('click', () => updateRide('picked_up'));
     document.getElementById('btnCompleted').addEventListener('click', () => {
       const rating = prompt('قيّم الزبون من 1 إلى 5:');
-      if (rating && !isNaN(rating)) {
-        updateRide('completed', parseFloat(rating));
-      }
+      if (rating && !isNaN(rating)) updateRide('completed', parseFloat(rating));
     });
     document.getElementById('btnCancelled').addEventListener('click', () => updateRide('cancelled'));
 

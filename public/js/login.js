@@ -19,7 +19,7 @@
       return;
     }
 
-    // 1. الحصول على user_id الحقيقي
+    // 1. جلب أو إنشاء المستخدم الحقيقي
     let currentUserId = null;
     try {
       const res = await fetch('/api/auth', {
@@ -34,7 +34,9 @@
       const result = await res.json();
       if (result.user && result.user.id) {
         currentUserId = result.user.id;
-        AppState.userId = currentUserId;
+        // تخزين دائم
+        localStorage.setItem('wasalni_user_id', currentUserId);
+        localStorage.setItem('wasalni_telegram_id', user.id);
       } else {
         showStatus('فشل إنشاء الحساب', true);
         return;
@@ -59,7 +61,7 @@
       }
     } catch(e) {}
 
-    // 3. توجيه حسب الدور
+    // 3. عند اختيار دور
     async function checkAndNavigate(role) {
       if (!currentUserId) return;
       try {
@@ -71,10 +73,10 @@
         const req = data.request;
         if (req) {
           if (req.status === 'approved') {
-            AppState.role = req.requested_role;
+            localStorage.setItem('wasalni_role', req.requested_role);
             window.location.href = req.requested_role === 'driver' ? 'driver.html' : 'customer.html';
           } else if (req.status === 'pending') {
-            AppState.role = role;
+            localStorage.setItem('wasalni_role', role);
             window.location.href = 'pending.html';
           } else if (req.status === 'rejected') {
             showStatus('❌ تم رفض طلبك السابق. يمكنك تقديم طلب جديد.', true);
@@ -91,7 +93,7 @@
     document.getElementById('roleCustomer').addEventListener('click', () => checkAndNavigate('customer'));
     document.getElementById('roleDriver').addEventListener('click', () => checkAndNavigate('driver'));
     document.getElementById('roleAdmin').addEventListener('click', () => {
-      AppState.role = 'admin';
+      localStorage.setItem('wasalni_role', 'admin');
       window.location.href = 'admin.html';
     });
   });
