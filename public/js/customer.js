@@ -4,8 +4,7 @@
 
   // ---------- متغيرات ----------
   let currentUserId = null;
-  let map;
-  let pickupMarker, dropoffMarker, driverMarker;
+  let map, pickupMarker, dropoffMarker, driverMarker;
   let pickupCoords = null;
   let dropoffCoords = null;
   let allDrivers = [];
@@ -17,22 +16,30 @@
     const user = tg?.initDataUnsafe?.user;
     if (!user) { window.location.href = 'login.html'; return false; }
 
-    let userId;
-    try {
-      const authRes = await fetch('/api/auth', {
-        method: 'POST', headers: { 'Content-Type': 'application/json' },
-        body: JSON.stringify({
-          telegram_id: user.id,
-          chat_id: user.id,
-          full_name: user.first_name + ' ' + (user.last_name || '')
-        })
-      });
-      const authData = await authRes.json();
-      if (!authData.user) { window.location.href = 'login.html'; return false; }
-      userId = authData.user.id;
-      AppState.userId = userId;
-    } catch (e) { window.location.href = 'login.html'; return false; }
+    let userId = localStorage.getItem('wasalni_user_id');
+    const savedTelegramId = localStorage.getItem('wasalni_telegram_id');
 
+    // إذا كان telegram_id مختلف أو لا يوجد userId، نجلبه من الخادم
+    if (!userId || savedTelegramId != user.id) {
+      try {
+        const authRes = await fetch('/api/auth', {
+          method: 'POST', headers: { 'Content-Type': 'application/json' },
+          body: JSON.stringify({
+            telegram_id: user.id,
+            chat_id: user.id,
+            full_name: user.first_name + ' ' + (user.last_name || ''),
+            role: requiredRole
+          })
+        });
+        const authData = await authRes.json();
+        if (!authData.user) { window.location.href = 'login.html'; return false; }
+        userId = authData.user.id;
+        localStorage.setItem('wasalni_user_id', userId);
+        localStorage.setItem('wasalni_telegram_id', user.id);
+      } catch (e) { window.location.href = 'login.html'; return false; }
+    }
+
+    // التحقق من وجود طلب موافقة
     try {
       const res = await fetch('/api/join-request?action=status', {
         method: 'POST', headers: { 'Content-Type': 'application/json' },
@@ -41,10 +48,10 @@
       const result = await res.json();
       const req = result.request;
       if (req && req.status === 'approved' && req.requested_role === requiredRole) {
-        AppState.role = requiredRole;
+        localStorage.setItem('wasalni_role', requiredRole);
         return userId;
       }
-      AppState.role = requiredRole;
+      localStorage.setItem('wasalni_role', requiredRole);
       window.location.href = 'pending.html';
       return false;
     } catch (e) {
@@ -250,7 +257,7 @@
   // ---------- التهيئة ----------
   document.getElementById('backBtn').addEventListener('click', () => window.location.href = 'login.html');
   document.getElementById('logoutBtn').addEventListener('click', () => {
-    AppState.clearAll();
+    localStorage.clear();
     window.location.href = 'login.html';
   });
   document.getElementById('profileBtn').addEventListener('click', () => window.location.href = 'profile.html');
@@ -258,9 +265,7 @@
   document.addEventListener('DOMContentLoaded', async () => {
     currentUserId = await ensureApproved('customer');
     if (!currentUserId) return;
-
-    const user = tg?.initDataUnsafe?.user;
-    document.getElementById('userName').textContent = user?.first_name || 'زبون';
+    document.getElementById('userName').textContent = tg?.initDataUnsafe?.user?.first_name || 'زبون';
     initMap();
     document.getElementById('driverGender').addEventListener('change', loadNearbyDrivers);
     document.getElementById('requestRideBtn').addEventListener('click', requestRide);

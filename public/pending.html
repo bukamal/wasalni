@@ -22,7 +22,6 @@
     let currentUserId = null;
     let checkInterval = null;
 
-    // الحصول على user_id من Telegram ID
     async function getUserId() {
       const user = tg?.initDataUnsafe?.user;
       if (!user) return null;
@@ -38,6 +37,7 @@
         const data = await res.json();
         if (data.user && data.user.id) {
           localStorage.setItem('wasalni_user_id', data.user.id);
+          localStorage.setItem('wasalni_telegram_id', user.id);
           return data.user.id;
         }
       } catch(e) {}
@@ -84,7 +84,6 @@
       }
     }
 
-    // بدء التحقق
     (async () => {
       currentUserId = await getUserId();
       if (currentUserId) {

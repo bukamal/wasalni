@@ -19,7 +19,7 @@
       return;
     }
 
-    // 1. جلب أو إنشاء المستخدم الحقيقي
+    // ✅ جلب أو إنشاء المستخدم
     let currentUserId = null;
     try {
       const res = await fetch('/api/auth', {
@@ -34,7 +34,7 @@
       const result = await res.json();
       if (result.user && result.user.id) {
         currentUserId = result.user.id;
-        // تخزين دائم
+        // تخزين مباشر
         localStorage.setItem('wasalni_user_id', currentUserId);
         localStorage.setItem('wasalni_telegram_id', user.id);
       } else {
@@ -46,7 +46,7 @@
       return;
     }
 
-    // 2. صلاحية الأدمن
+    // ✅ صلاحية الأدمن
     try {
       const adminRes = await fetch('/api/admin?action=check_admin', {
         method: 'POST', headers: { 'Content-Type': 'application/json' },
@@ -61,7 +61,7 @@
       }
     } catch(e) {}
 
-    // 3. عند اختيار دور
+    // ✅ توجيه حسب الدور
     async function checkAndNavigate(role) {
       if (!currentUserId) return;
       try {

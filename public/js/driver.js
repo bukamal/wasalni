@@ -6,22 +6,27 @@
     const user = tg?.initDataUnsafe?.user;
     if (!user) { window.location.href = 'login.html'; return false; }
 
-    let userId;
-    try {
-      const authRes = await fetch('/api/auth', {
-        method: 'POST', headers: { 'Content-Type': 'application/json' },
-        body: JSON.stringify({
-          telegram_id: user.id,
-          chat_id: user.id,
-          full_name: user.first_name + ' ' + (user.last_name || ''),
-          role: 'driver'
-        })
-      });
-      const authData = await authRes.json();
-      if (!authData.user) { window.location.href = 'login.html'; return false; }
-      userId = authData.user.id;
-      localStorage.setItem('wasalni_user_id', userId);
-    } catch (e) { window.location.href = 'login.html'; return false; }
+    let userId = localStorage.getItem('wasalni_user_id');
+    const savedTelegramId = localStorage.getItem('wasalni_telegram_id');
+
+    if (!userId || savedTelegramId != user.id) {
+      try {
+        const authRes = await fetch('/api/auth', {
+          method: 'POST', headers: { 'Content-Type': 'application/json' },
+          body: JSON.stringify({
+            telegram_id: user.id,
+            chat_id: user.id,
+            full_name: user.first_name + ' ' + (user.last_name || ''),
+            role: requiredRole
+          })
+        });
+        const authData = await authRes.json();
+        if (!authData.user) { window.location.href = 'login.html'; return false; }
+        userId = authData.user.id;
+        localStorage.setItem('wasalni_user_id', userId);
+        localStorage.setItem('wasalni_telegram_id', user.id);
+      } catch (e) { window.location.href = 'login.html'; return false; }
+    }
 
     try {
       const res = await fetch('/api/join-request?action=status', {
@@ -34,7 +39,6 @@
         localStorage.setItem('wasalni_role', requiredRole);
         return userId;
       }
-      // إذا لم يجد الطلب المناسب
       localStorage.setItem('wasalni_role', requiredRole);
       window.location.href = 'pending.html';
       return false;

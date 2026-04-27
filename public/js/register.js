@@ -46,7 +46,6 @@
       document.getElementById('driverFields').classList.remove('hidden');
     }
 
-    // معاينات الصور
     document.getElementById('personalPhoto').addEventListener('change', function() {
       showPreview(this, document.getElementById('personalPhotoPreview'));
     });
@@ -59,7 +58,7 @@
       });
     }
 
-    // جلب/إنشاء المستخدم الفعلي لتيليجرام الحالي
+    // جلب/إنشاء المستخدم
     let currentUserId = null;
     try {
       const res = await fetch('/api/auth', {
@@ -74,7 +73,8 @@
       const result = await res.json();
       if (result.user && result.user.id) {
         currentUserId = result.user.id;
-        AppState.userId = currentUserId;
+        localStorage.setItem('wasalni_user_id', currentUserId);
+        localStorage.setItem('wasalni_telegram_id', user.id);
       } else {
         tg?.showAlert('فشل في إنشاء الحساب');
         return;
@@ -84,7 +84,7 @@
       return;
     }
 
-    // التحقق من وجود طلب سابق (حتى لا يتجاوز التسجيل دون داع)
+    // التحقق من وجود طلب سابق
     try {
       const statusRes = await fetch('/api/join-request?action=status', {
         method: 'POST', headers: { 'Content-Type': 'application/json' },
@@ -94,7 +94,7 @@
       const req = statusData.request;
       if (req) {
         if (req.status === 'approved') {
-          AppState.role = req.requested_role;
+          localStorage.setItem('wasalni_role', req.requested_role);
           window.location.href = req.requested_role === 'driver' ? 'driver.html' : 'customer.html';
           return;
         } else if (req.status === 'pending') {
@@ -102,7 +102,6 @@
           setTimeout(() => { window.location.href = 'pending.html'; }, 1500);
           return;
         }
-        // إذا كان مرفوضاً نسمح بإعادة التقديم
       }
     } catch(e) {}
 
@@ -163,7 +162,7 @@
         });
         const joinData = await joinRes.json();
         if (joinData.request) {
-          AppState.role = role;
+          localStorage.setItem('wasalni_role', role);
           tg?.showAlert('✅ تم إرسال طلب الانضمام');
           setTimeout(() => { window.location.href = 'pending.html'; }, 1000);
         } else {
