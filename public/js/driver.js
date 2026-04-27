@@ -2,26 +2,30 @@
   const tg = window.Telegram.WebApp;
   if (tg) { tg.expand(); tg.ready(); }
 
+  // ---------- ضمان صلاحية السائق ----------
   async function ensureApproved(requiredRole) {
     const user = tg?.initDataUnsafe?.user;
     if (!user) { window.location.href = 'login.html'; return false; }
 
-    let userId = AppState.userId;
-    if (!userId) {
-      try {
-        const authRes = await fetch('/api/auth', {
-          method: 'POST', headers: { 'Content-Type': 'application/json' },
-          body: JSON.stringify({ telegram_id: user.id, chat_id: user.id, full_name: 'check' })
-        });
-        const authData = await authRes.json();
-        if (authData.user) {
-          userId = authData.user.id;
-          AppState.userId = userId;
-        }
-      } catch(e) {}
-    }
-    if (!userId) { window.location.href = 'login.html'; return false; }
+    // جلب/إنشاء المستخدم الحقيقي من Telegram ID
+    let userId;
+    try {
+      const authRes = await fetch('/api/auth', {
+        method: 'POST', headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({
+          telegram_id: user.id,
+          chat_id: user.id,
+          full_name: user.first_name + ' ' + (user.last_name || ''),
+          role: 'driver'   // مؤقت لكن سيُصحح لاحقًا
+        })
+      });
+      const authData = await authRes.json();
+      if (!authData.user) { window.location.href = 'login.html'; return false; }
+      userId = authData.user.id;
+      AppState.userId = userId;   // نخزّن الصحيح
+    } catch (e) { window.location.href = 'login.html'; return false; }
 
+    // التحقق من وجود طلب موافقة
     try {
       const res = await fetch('/api/join-request?action=status', {
         method: 'POST', headers: { 'Content-Type': 'application/json' },
@@ -30,11 +34,17 @@
       const result = await res.json();
       const req = result.request;
       if (req && req.status === 'approved' && req.requested_role === requiredRole) {
+        AppState.role = requiredRole;
         return userId;
       }
+      // غير مصرح أو قيد الانتظار
+      AppState.role = requiredRole;
       window.location.href = 'pending.html';
       return false;
-    } catch(e) { window.location.href = 'pending.html'; return false; }
+    } catch (e) {
+      window.location.href = 'pending.html';
+      return false;
+    }
   }
 
   document.getElementById('backBtn').addEventListener('click', () => window.location.href = 'login.html');
@@ -59,7 +69,7 @@
           })
         }).catch(() => {});
       }, err => {}, { enableHighAccuracy: true, maximumAge: 10000 });
-    }, 10000); // كل 10 ثوان
+    }, 10000);
   }
 
   function stopSendingLocation() {
@@ -164,10 +174,4 @@
       }
     }
   }
-
-  // خروج آمن
-  document.getElementById('backBtn').addEventListener('click', () => {
-    stopSendingLocation();
-    window.location.href = 'login.html';
-  });
 })();
