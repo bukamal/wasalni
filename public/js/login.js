@@ -19,30 +19,32 @@
       return;
     }
 
-    let currentUserId = AppState.userId;
-    if (!currentUserId) {
-      try {
-        const res = await fetch('/api/auth', {
-          method: 'POST', headers: { 'Content-Type': 'application/json' },
-          body: JSON.stringify({
-            telegram_id: user.id,
-            chat_id: user.id,
-            full_name: user.first_name + ' ' + (user.last_name || ''),
-            role: 'customer'
-          })
-        });
-        const result = await res.json();
-        if (result.user) {
-          AppState.userId = result.user.id;
-          currentUserId = result.user.id;
-        }
-      } catch (e) {
-        showStatus('خطأ في الاتصال', true);
+    // 1. نجلب/ننشئ المستخدم الحقيقي لتيليجرام هذا
+    let currentUserId = null;
+    try {
+      const res = await fetch('/api/auth', {
+        method: 'POST', headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({
+          telegram_id: user.id,
+          chat_id: user.id,
+          full_name: user.first_name + ' ' + (user.last_name || ''),
+          role: 'customer'
+        })
+      });
+      const result = await res.json();
+      if (result.user && result.user.id) {
+        currentUserId = result.user.id;
+        AppState.userId = currentUserId;   // نخزّن المعرف الصحيح
+      } else {
+        showStatus('فشل إنشاء الحساب', true);
         return;
       }
+    } catch (e) {
+      showStatus('خطأ في الاتصال', true);
+      return;
     }
 
-    // Admin check باستخدام الإجراء الجديد
+    // 2. التحقق من صلاحية الأدمن
     try {
       const adminRes = await fetch('/api/admin?action=check_admin', {
         method: 'POST', headers: { 'Content-Type': 'application/json' },
@@ -57,8 +59,8 @@
       }
     } catch(e) {}
 
+    // 3. عند اختيار دور (زبون/سائق)، نتحقق من حالة الطلب
     async function checkAndNavigate(role) {
-      if (!currentUserId) return;
       try {
         const res = await fetch('/api/join-request?action=status', {
           method: 'POST', headers: { 'Content-Type': 'application/json' },
@@ -78,6 +80,7 @@
             window.location.href = 'register.html?role=' + role;
           }
         } else {
+          // لا يوجد طلب سابق → صفحة التسجيل
           window.location.href = 'register.html?role=' + role;
         }
       } catch(e) {

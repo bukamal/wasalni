@@ -20,46 +20,81 @@
     const tg = window.Telegram.WebApp;
     if (tg) { tg.expand(); tg.ready(); }
 
-    const userId = AppState.userId;
-    if (!userId) {
-      window.location.href = 'login.html';
+    let currentUserId = null;
+
+    async function getUserId() {
+      const user = tg?.initDataUnsafe?.user;
+      if (!user) return null;
+      try {
+        const res = await fetch('/api/auth', {
+          method: 'POST', headers: { 'Content-Type': 'application/json' },
+          body: JSON.stringify({
+            telegram_id: user.id,
+            chat_id: user.id,
+            full_name: user.first_name + ' ' + (user.last_name || '')
+          })
+        });
+        const data = await res.json();
+        if (data.user && data.user.id) {
+          AppState.userId = data.user.id;
+          return data.user.id;
+        }
+      } catch(e) {}
+      return null;
     }
 
-    let checkInterval = setInterval(checkStatus, 5000);
+    let checkInterval = null;
 
     async function checkStatus() {
-      if (!userId) return;
+      if (!currentUserId) {
+        currentUserId = await getUserId();
+        if (!currentUserId) {
+          document.getElementById('statusMsg').textContent = '⚠️ تعذر التحقق من هويتك';
+          return;
+        }
+      }
+
       try {
         const res = await fetch('/api/join-request?action=status', {
-          method: 'POST',
-          headers: { 'Content-Type': 'application/json' },
-          body: JSON.stringify({ user_id: userId })
+          method: 'POST', headers: { 'Content-Type': 'application/json' },
+          body: JSON.stringify({ user_id: currentUserId })
         });
         const result = await res.json();
         const req = result.request;
-        const statusMsg = document.getElementById('statusMsg');
+        const msg = document.getElementById('statusMsg');
         if (req) {
           if (req.status === 'approved') {
             clearInterval(checkInterval);
-            statusMsg.textContent = '✅ تمت الموافقة! جاري التحويل...';
+            msg.textContent = '✅ تمت الموافقة! جاري التحويل...';
             setTimeout(() => {
-              const role = AppState.role || 'customer';
+              const role = AppState.role || req.requested_role;
               if (role === 'driver') window.location.href = 'driver.html';
               else window.location.href = 'customer.html';
             }, 1500);
           } else if (req.status === 'rejected') {
             clearInterval(checkInterval);
-            statusMsg.textContent = '❌ تم رفض الطلب. يرجى التواصل مع الإدارة.';
+            msg.textContent = '❌ تم رفض الطلب. يرجى التواصل مع الإدارة.';
           } else {
-            statusMsg.textContent = 'طلبك لا يزال قيد الانتظار...';
+            msg.textContent = 'طلبك لا يزال قيد الانتظار...';
           }
         } else {
-          statusMsg.textContent = 'لم يتم العثور على طلب.';
+          msg.textContent = 'لم يتم العثور على طلب. ربما تحتاج لإعادة تقديمه.';
         }
-      } catch(e) {}
+      } catch(e) {
+        msg.textContent = '❌ خطأ في الاتصال';
+      }
     }
 
-    window.addEventListener('beforeunload', () => clearInterval(checkInterval));
+    // بدء التحقق
+    (async () => {
+      currentUserId = await getUserId();
+      if (currentUserId) {
+        checkStatus();
+        checkInterval = setInterval(checkStatus, 5000);
+      } else {
+        document.getElementById('statusMsg').textContent = '⚠️ تعذر التحقق من هويتك';
+      }
+    })();
   </script>
 </body>
 </html>

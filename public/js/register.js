@@ -5,18 +5,16 @@
   const urlParams = new URLSearchParams(window.location.search);
   const role = urlParams.get('role');
 
-  // تحويل ملف إلى Base64 مع تنسيق data URI
   function fileToBase64(file) {
-    return new Promise((resolve, reject) => {
+    return new Promise((resolve) => {
       if (!file) return resolve(null);
       const reader = new FileReader();
       reader.onload = () => resolve(reader.result);
-      reader.onerror = reject;
+      reader.onerror = () => resolve(null);
       reader.readAsDataURL(file);
     });
   }
 
-  // عرض معاينة الصورة
   function showPreview(inputElement, imgElement) {
     if (inputElement.files && inputElement.files[0]) {
       const reader = new FileReader();
@@ -61,7 +59,7 @@
       });
     }
 
-    // الحصول على userId
+    // جلب/إنشاء المستخدم الفعلي لتيليجرام الحالي
     let currentUserId = null;
     try {
       const res = await fetch('/api/auth', {
@@ -86,24 +84,25 @@
       return;
     }
 
-    // تحقق من حالة سابقة
+    // التحقق من وجود طلب سابق (حتى لا يتجاوز التسجيل دون داع)
     try {
-      const res = await fetch('/api/join-request?action=status', {
+      const statusRes = await fetch('/api/join-request?action=status', {
         method: 'POST', headers: { 'Content-Type': 'application/json' },
         body: JSON.stringify({ user_id: currentUserId })
       });
-      const data = await res.json();
-      const req = data.request;
+      const statusData = await statusRes.json();
+      const req = statusData.request;
       if (req) {
         if (req.status === 'approved') {
           AppState.role = req.requested_role;
           window.location.href = req.requested_role === 'driver' ? 'driver.html' : 'customer.html';
           return;
         } else if (req.status === 'pending') {
-          tg?.showAlert('لديك طلب قيد المراجعة');
+          tg?.showAlert('لديك طلب قيد المراجعة بالفعل');
           setTimeout(() => { window.location.href = 'pending.html'; }, 1500);
           return;
         }
+        // إذا كان مرفوضاً نسمح بإعادة التقديم
       }
     } catch(e) {}
 
@@ -115,7 +114,6 @@
       const personalPhotoFile = document.getElementById('personalPhoto').files[0];
       const personalPhotoBase64 = await fileToBase64(personalPhotoFile);
 
-      // تحديث بيانات المستخدم (بما فيها الصورة)
       try {
         await fetch('/api/auth', {
           method: 'POST', headers: { 'Content-Type': 'application/json' },
